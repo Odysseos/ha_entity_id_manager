@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.2.0
+
+- Add an admin editor with object selection and inline ID-part editing.
+- Keep drafts across objects and tabs; show saved and draft values as neutral, red and green ID chips without captions.
+- Add a searchable object picker with keyboard navigation and diff styling for replacements and removals.
+- Add per-object Clear and Reset changes controls, batch confirmation and full cancellation.
+- Validate all changes before one configuration write and reject stale editor sessions.
+- Add browser interaction tests and backend authorization and batch validation tests.
+
 ## 0.1.1
 
 - Expose saved ID parts as editable text entities under the integration.

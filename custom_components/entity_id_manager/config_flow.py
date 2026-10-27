@@ -33,9 +33,12 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
 class OptionsFlow(config_entries.OptionsFlow):
     async def async_step_init(self, user_input=None):
-        return self.async_show_menu(
-            step_id="init", menu_options=["area", "device", "entity", "preview", "automatic"]
-        )
+        return self.async_show_menu(step_id="init", menu_options=["editor", "preview", "automatic"])
+
+    async def async_step_editor(self, user_input=None):
+        if user_input is not None:
+            return await self.async_step_init()
+        return self.async_show_form(step_id="editor", data_schema=vol.Schema({}))
 
     async def _select(self, kind, user_input):
         if user_input is not None:

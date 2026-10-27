@@ -16,9 +16,7 @@
       "init": {
         "title": "Manage entity IDs",
         "menu_options": {
-          "area": "Area ID part",
-          "device": "Device ID part",
-          "entity": "Entity ID suffix",
+          "editor": "Mapping editor",
           "preview": "Preview and apply",
           "automatic": "Automatic renaming"
         }
@@ -61,6 +59,10 @@
         "data": {
           "auto_new": "Automatically rename new entities"
         }
+      },
+      "editor": {
+        "title": "Mapping editor",
+        "description": "[Open editor](/entity-id-manager). Edit multiple objects and confirm all mappings together. Return to Preview and apply to rename entities."
       }
     },
     "error": {

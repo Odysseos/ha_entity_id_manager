@@ -1,0 +1,64 @@
+import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
+const source = await readFile(
+  new URL(
+    "../custom_components/entity_id_manager/www/editor.js",
+    import.meta.url,
+  ),
+  "utf8",
+);
+const { DraftStore } = await import(
+  `data:text/javascript;base64,${Buffer.from(source).toString("base64")}`
+);
+const snapshot = {
+  revision: "r1",
+  mappings: { areas: { a: "living_room" }, devices: {}, entities: {} },
+  objects: {
+    areas: [
+      { id: "a", name: "Гостиная" },
+      { id: "b", name: "Ванная" },
+    ],
+    devices: [],
+    entities: [],
+  },
+};
+const store = new DraftStore(snapshot);
+assert.deepEqual(store.segments("areas", "a"), [
+  { value: "living_room", kind: "saved" },
+]);
+store.set("areas", "a", "lounge");
+store.set("areas", "b", "bathroom");
+assert.equal(store.count, 2);
+assert.equal(store.value("areas", "a"), "lounge");
+assert.deepEqual(store.segments("areas", "a"), [
+  { value: "living_room", kind: "removed" },
+  { value: "lounge", kind: "added" },
+]);
+assert.deepEqual(store.segments("areas", "b"), [
+  { value: "bathroom", kind: "added" },
+]);
+store.set("areas", "a", "");
+assert.deepEqual(store.segments("areas", "a"), [
+  { value: "living_room", kind: "removed" },
+]);
+store.reset("areas", "a");
+assert.equal(store.value("areas", "a"), "living_room");
+assert.equal(store.count, 1);
+store.set("areas", "b", "INVALID");
+assert.equal(store.valid, false);
+store.set("areas", "b", "");
+assert.equal(store.count, 0);
+assert.equal(store.valid, true);
+assert.deepEqual(snapshot.mappings, {
+  areas: { a: "living_room" },
+  devices: {},
+  entities: {},
+});
+store.set("areas", "a", "lounge");
+const changes = store.changes();
+changes.areas.a = "mutated";
+assert.equal(store.value("areas", "a"), "lounge");
+const cancelled = new DraftStore(snapshot);
+assert.equal(cancelled.count, 0);
+assert.equal(cancelled.value("areas", "a"), "living_room");
+console.log("Editor drafts: passed");

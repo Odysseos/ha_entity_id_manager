@@ -269,11 +269,11 @@ async def test_legacy_suffix_is_stable(ctx):
 
 
 @pytest.mark.asyncio
-async def test_real_integration_setup_and_options(tmp_path):
+async def test_real_integration_setup_and_options(tmp_path, monkeypatch):
     import shutil
     from pathlib import Path
 
-    from homeassistant import bootstrap, config_entries, loader
+    from homeassistant import auth, bootstrap, config_entries, loader
 
     source = Path(__file__).parents[1] / "custom_components"
     shutil.copytree(
@@ -283,6 +283,13 @@ async def test_real_integration_setup_and_options(tmp_path):
     loader.async_setup(hass)
     hass.config_entries = config_entries.ConfigEntries(hass, {})
     await bootstrap.async_load_base_functionality(hass)
+    hass.auth = await auth.auth_manager_from_config(hass, [], [])
+    from unittest.mock import AsyncMock
+
+    from homeassistant.components import network
+
+    monkeypatch.setattr(network, "async_get_source_ip", AsyncMock(return_value="127.0.0.1"))
+    monkeypatch.setattr(network, "async_get_adapters", AsyncMock(return_value=[]))
     flow = await hass.config_entries.flow.async_init(
         "entity_id_manager", context={"source": "user"}
     )
@@ -292,6 +299,11 @@ async def test_real_integration_setup_and_options(tmp_path):
     await hass.async_block_till_done()
     entry = result["result"]
     assert entry.state.value == "loaded"
+    from homeassistant.components.frontend import async_panel_exists
+
+    assert async_panel_exists(hass, "entity-id-manager")
+    assert "entity_id_manager/editor/get" in hass.data["websocket_api"]
+    assert "entity_id_manager/editor/save" in hass.data["websocket_api"]
     duplicate = await hass.config_entries.flow.async_init(
         "entity_id_manager", context={"source": "user"}
     )
@@ -340,6 +352,7 @@ async def test_real_integration_setup_and_options(tmp_path):
     assert area.id not in entry.options["areas"]
     assert hass.states.get(text_id).state == ""
     assert await hass.config_entries.async_unload(entry.entry_id)
+    assert not async_panel_exists(hass, "entity-id-manager")
     await hass.async_stop()
 
 
@@ -357,4 +370,72 @@ async def test_selectors_show_saved_parts(ctx):
         form = await method()
         control = next(iter(form["data_schema"].schema.values()))
         assert {"value": value, "label": label} in control.config["options"]
+    await hass.async_stop()
+
+
+@pytest.mark.asyncio
+async def test_editor_atomic_save_and_stale_guard(ctx):
+    from custom_components.entity_id_manager.editor import EditError, revision, save, snapshot
+
+    hass, entry, area, device, entity = await ctx()
+    manager = Manager(hass, entry)
+    before = snapshot(hass, entry)
+    assert before["mappings"]["areas"][area.id] == "bathroom"
+    update = hass.config_entries.async_update_entry
+    with patch.object(hass.config_entries, "async_update_entry", wraps=update) as write:
+        result = await save(
+            hass,
+            manager,
+            before["revision"],
+            {
+                "areas": {area.id: "washroom"},
+                "devices": {device.id: "water_guard"},
+                "entities": {entity.id: "leak"},
+            },
+        )
+        assert write.call_count == 1
+    assert entry.options["areas"][area.id] == "washroom"
+    assert entry.options["devices"][device.id] == "water_guard"
+    assert result["revision"] != before["revision"]
+    assert er.async_get(hass).async_get(entity.entity_id)
+    with pytest.raises(EditError, match="changed"):
+        await save(hass, manager, before["revision"], {"areas": {area.id: "old"}})
+    assert entry.options["areas"][area.id] == "washroom"
+    await save(hass, manager, revision(entry), {"entities": {entity.id: ""}})
+    assert entity.id not in entry.options["entities"]
+    await hass.async_stop()
+
+
+@pytest.mark.asyncio
+async def test_editor_invalid_batch_is_not_saved(ctx):
+    from custom_components.entity_id_manager.editor import EditError, revision, save
+
+    hass, entry, area, device, entity = await ctx()
+    manager = Manager(hass, entry)
+    before = dict(entry.options)
+    for changes in [
+        {"areas": {area.id: "new"}, "devices": {device.id: "INVALID"}},
+        {"areas": {"deleted": "new"}},
+        {"unknown": {}},
+        {"areas": []},
+        {"entities": {entity.id: 42}},
+    ]:
+        with pytest.raises(EditError):
+            await save(hass, manager, revision(entry), changes)
+        assert dict(entry.options) == before
+    await hass.async_stop()
+
+
+@pytest.mark.asyncio
+async def test_editor_admin_only(ctx):
+    from types import SimpleNamespace
+
+    from homeassistant.exceptions import Unauthorized
+
+    from custom_components.entity_id_manager.editor import websocket_get, websocket_save
+
+    hass, entry, area, device, entity = await ctx()
+    for handler in [websocket_get, websocket_save]:
+        with pytest.raises(Unauthorized):
+            handler(hass, SimpleNamespace(user=SimpleNamespace(is_admin=False)), {"id": 1})
     await hass.async_stop()

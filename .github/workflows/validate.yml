@@ -18,6 +18,20 @@ jobs:
       - run: ruff format --check custom_components tests
       - run: python -m pytest -q
       - run: python -m compileall -q custom_components
+  editor:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+      - run: node tests/test_editor.mjs
+      - run: npm install --prefix "$RUNNER_TEMP/entity-id-browser" playwright@1.51.1
+      - run: node "$RUNNER_TEMP/entity-id-browser/node_modules/playwright/cli.js" install --with-deps chromium
+      - run: node tests/test_editor_browser.mjs
+        env:
+          PLAYWRIGHT_MODULE: ${{ runner.temp }}/entity-id-browser/node_modules/playwright/index.mjs
   hassfest:
     runs-on: ubuntu-latest
     steps:

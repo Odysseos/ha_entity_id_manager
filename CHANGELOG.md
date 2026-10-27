@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.3.2
+
+- Sort devices without an area after all devices assigned to areas.
+- Add native links to area, device and entity details in the picker and selected object.
+- Open details in a new tab to preserve unsaved editor drafts.
+
 ## 0.3.1
 
 - Add icons to object selection rows and the selected object.

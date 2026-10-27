@@ -27,7 +27,7 @@ try {
       contentType: "text/html",
       body: `<!doctype html><html lang="ru"><meta charset="UTF-8"><body style="margin:0;--primary-text-color:#222;--primary-color:#009fbd;--primary-background-color:#fafafa;--card-background-color:white;--secondary-background-color:#f1f1f1"><entity-id-manager-panel></entity-id-manager-panel><script type="module">
     import '/editor.js';
-    const snapshot={revision:'r1',mappings:{areas:{a:'living_room'},devices:{d:'neptun'},entities:{}},objects:{areas:[{id:'a',name:'Гостиная'},{id:'b',name:'Ванная'}],devices:[{id:'d',name:'Нептун',area_name:'Ванная'}],entities:[{id:'e',name:'Температура',entity_id:'sensor.test',area_name:'Кухня',device_name:'Мультисенсор'}]}};
+    const snapshot={revision:'r1',mappings:{areas:{a:'living_room'},devices:{d:'neptun',unassigned:'controller'},entities:{}},objects:{areas:[{id:'a',name:'Гостиная'},{id:'b',name:'Ванная'}],devices:[{id:'unassigned',name:'Адаптер',area_name:null},{id:'d',name:'Нептун',area_name:'Ванная'}],entities:[{id:'e',name:'Температура',entity_id:'sensor.test',area_name:'Кухня',device_name:'Мультисенсор'}]}};
     window.test={snapshot,calls:[],fail:false};
     document.querySelector('entity-id-manager-panel').hass={locale:{language:'ru'},callWS:async(msg)=>{
       if(msg.type.endsWith('/get'))return structuredClone(window.test.snapshot);
@@ -51,6 +51,11 @@ try {
   await q("#open").click();
   await q("#editor-dialog").waitFor({ state: "visible" });
   await choose("a");
+  assert.equal(
+    await q("#selected-link a").getAttribute("href"),
+    "/config/areas/area/a",
+  );
+
   await q("#part").fill("lounge");
   assert.deepEqual(await q("#object .id-chip").allTextContents(), [
     "living_room",
@@ -104,11 +109,34 @@ try {
   await q('[data-kind="devices"]').click();
   assert.match(await q("#object").textContent(), /Ванная\/Нептун/);
   assert.equal(await q("#object .object-icon").count(), 1);
+  assert.equal(
+    await q("#selected-link a").getAttribute("href"),
+    "/config/devices/device/d",
+  );
+  assert.equal(await q("#selected-link a").getAttribute("target"), "_blank");
+  await q("#object").click();
+  assert.deepEqual(
+    await q(".object-option").evaluateAll((nodes) =>
+      nodes.map((node) => node.dataset.objectId),
+    ),
+    ["d", "unassigned"],
+  );
+  assert.equal(
+    await q(".object-choice:last-child a").getAttribute("href"),
+    "/config/devices/device/unassigned",
+  );
+  await page.keyboard.press("Escape");
+
   await q('[data-kind="entities"]').click();
   assert.match(
     await q("#object").textContent(),
     /Кухня\/Мультисенсор\/Температура/,
   );
+  assert.equal(
+    await q("#selected-link a").getAttribute("href"),
+    "/config/entities?more-info-entity-id=sensor.test",
+  );
+
   assert.equal(await q("#object .object-icon").count(), 1);
   await q('[data-kind="devices"]').click();
 

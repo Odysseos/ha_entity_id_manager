@@ -92,6 +92,9 @@ Object.assign(WORDS.en, {
 Object.assign(WORDS.ru, { noArea: "Без зоны", noDevice: "Без устройства" });
 Object.assign(WORDS.en, { noArea: "No area", noDevice: "No device" });
 
+Object.assign(WORDS.ru, { openCard: "Открыть карточку" });
+Object.assign(WORDS.en, { openCard: "Open details" });
+
 export class DraftStore {
   constructor(snapshot) {
     this.revision = snapshot.revision;
@@ -185,8 +188,9 @@ export class IDManagerPanel extends (globalThis.HTMLElement || class {}) {
       .object-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap;color:var(--primary-text-color,#222);font-weight:normal}.object-icon{flex:0 0 24px;--mdc-icon-size:24px;color:var(--secondary-text-color,#666)}.object-name{overflow-wrap:anywhere}.id-chip{font-family:monospace;font-size:.92em;border-radius:4px;padding:3px 7px;overflow-wrap:anywhere;background:var(--secondary-background-color,#eee);color:var(--primary-text-color,#222)}.id-chip.removed{background:color-mix(in srgb,var(--error-color,#db4437) 22%,var(--card-background-color,white));text-decoration:line-through;text-decoration-thickness:1.5px}.id-chip.added{background:color-mix(in srgb,var(--success-color,#0f9d58) 24%,var(--card-background-color,white))}
       #object-dropdown{display:flex;flex-direction:column;position:fixed;inset:auto;margin:0;box-sizing:border-box;overflow:hidden;z-index:2;background:var(--card-background-color,white);border:1px solid var(--divider-color,#ccc);border-radius:0 0 8px 8px;box-shadow:0 6px 18px #0003}#object-search{display:block;flex:0 0 auto;border-radius:0;margin:0;line-height:1.5;min-height:56px}#object-search:focus-visible{outline-offset:-2px}#object-list{flex:1 1 auto;min-height:0;max-height:none;overflow:auto;overscroll-behavior:contain;padding-top:6px}#object-list button{box-sizing:border-box;min-height:48px;line-height:1.5;border-radius:0;display:flex;width:100%;text-align:left;padding:14px 12px}#object-list button:hover,#object-list button:focus-visible,#object-list button[aria-selected=true]{background:var(--secondary-background-color,#eee)}
       .automatic{display:flex;align-items:center;gap:12px}.automatic input,.preview-row input{width:auto;min-height:0;flex:0 0 auto}.preview-row{display:flex;align-items:flex-start;gap:12px;padding:12px 0;border-bottom:1px solid var(--divider-color,#ddd)}.preview-ids{overflow-wrap:anywhere;line-height:1.6}.preview-ids code{display:block}.preview-row .error{font-size:14px}
+      #selected-link{display:flex;flex:0 0 40px}.selected-row,.object-choice{display:flex;align-items:center;min-width:0}.selected-row{background:var(--secondary-background-color,#f5f5f5)}.selected-row #object{flex:1;min-width:0;width:auto}.object-link{display:flex;align-items:center;justify-content:center;flex:0 0 40px;min-height:44px;text-decoration:none;color:var(--secondary-text-color,#666);--mdc-icon-size:20px}.object-link:focus-visible{outline:2px solid var(--primary-color);outline-offset:-2px}.object-link:hover{color:var(--primary-color)}#object-list .object-option{flex:1;min-width:0;width:auto}.object-choice:hover{background:var(--secondary-background-color,#eee)}
     </style><header><ha-menu-button></ha-menu-button><h1>Entity ID Manager</h1></header><main><h2>${w.title}</h2><p>${w.intro}</p><button id="open" class="primary">${w.open}</button><button id="preview-open">${w.preview}</button><label class="automatic"><input id="automatic" type="checkbox" disabled> ${w.automatic}</label><p id="status" role="status"></p></main>
-    <dialog id="editor-dialog"><div class="heading"><button id="close" aria-label="${w.close}">×</button><h2>${w.title}</h2></div><div class="tabs" role="tablist">${KEYS.map((k) => `<button role="tab" data-kind="${k}">${w[k]}</button>`).join("")}</div><label id="object-label">${w.choose}</label><div class="picker"><button id="object" class="object-row" aria-labelledby="object-label" aria-haspopup="listbox" aria-expanded="false" aria-controls="object-list"></button><div id="object-dropdown" popover="manual" hidden><input id="object-search" type="search" aria-label="${w.search}" placeholder="${w.search}" autocomplete="off"><div id="object-list" role="listbox" aria-labelledby="object-label"></div></div></div><label for="part">${w.part}</label><input id="part" type="text" autocomplete="off" autocapitalize="none" spellcheck="false"><div class="tools"><button id="clear">${w.clear}</button><button id="reset">${w.reset}</button></div><p id="validation" class="error" role="status"></p><p id="count" class="count"></p><p id="error" class="error" role="alert"></p><div class="actions"><button id="cancel">${w.cancel}</button><button id="confirm" class="primary">${w.confirm}</button></div></dialog><dialog id="preview-dialog"><div class="heading"><button id="preview-close" aria-label="${w.close}">×</button><h2>${w.preview}</h2></div><p>${w.references}</p><div id="preview-rows"></div><p id="preview-error" class="error" role="alert"></p><div class="actions"><button id="preview-cancel">${w.cancel}</button><button id="preview-apply" class="primary" disabled>${w.apply}</button></div></dialog>`;
+    <dialog id="editor-dialog"><div class="heading"><button id="close" aria-label="${w.close}">×</button><h2>${w.title}</h2></div><div class="tabs" role="tablist">${KEYS.map((k) => `<button role="tab" data-kind="${k}">${w[k]}</button>`).join("")}</div><label id="object-label">${w.choose}</label><div class="picker"><div class="selected-row"><button id="object" class="object-row" aria-labelledby="object-label" aria-haspopup="listbox" aria-expanded="false" aria-controls="object-list"></button><span id="selected-link"></span></div><div id="object-dropdown" popover="manual" hidden><input id="object-search" type="search" aria-label="${w.search}" placeholder="${w.search}" autocomplete="off"><div id="object-list" role="listbox" aria-labelledby="object-label"></div></div></div><label for="part">${w.part}</label><input id="part" type="text" autocomplete="off" autocapitalize="none" spellcheck="false"><div class="tools"><button id="clear">${w.clear}</button><button id="reset">${w.reset}</button></div><p id="validation" class="error" role="status"></p><p id="count" class="count"></p><p id="error" class="error" role="alert"></p><div class="actions"><button id="cancel">${w.cancel}</button><button id="confirm" class="primary">${w.confirm}</button></div></dialog><dialog id="preview-dialog"><div class="heading"><button id="preview-close" aria-label="${w.close}">×</button><h2>${w.preview}</h2></div><p>${w.references}</p><div id="preview-rows"></div><p id="preview-error" class="error" role="alert"></p><div class="actions"><button id="preview-cancel">${w.cancel}</button><button id="preview-apply" class="primary" disabled>${w.apply}</button></div></dialog>`;
     const q = (s) => this.shadowRoot.querySelector(s);
     const menu = q("ha-menu-button");
     if (menu) menu.hass = this._hass;
@@ -436,7 +440,9 @@ export class IDManagerPanel extends (globalThis.HTMLElement || class {}) {
   selectKind() {
     if (!this.store) return;
     this.closePicker();
-    const rows = this.store.objects[this.kind];
+    const rows = [...this.store.objects[this.kind]].sort((a, b) =>
+      this.compareObjects(a, b),
+    );
     if (!rows.some((o) => o.id === this.selected[this.kind]))
       this.selected[this.kind] = rows[0]?.id || "";
     for (const button of this.shadowRoot.querySelectorAll("[data-kind]"))
@@ -445,6 +451,39 @@ export class IDManagerPanel extends (globalThis.HTMLElement || class {}) {
         String(button.dataset.kind === this.kind),
       );
     this.fill();
+  }
+  compareObjects(a, b) {
+    if (this.kind === "devices") {
+      const unassigned = Number(!a.area_name) - Number(!b.area_name);
+      if (unassigned) return unassigned;
+    }
+    return (
+      Number(Boolean(this.store.saved[this.kind][b.id])) -
+        Number(Boolean(this.store.saved[this.kind][a.id])) ||
+      this.objectLabel(a).localeCompare(this.objectLabel(b)) ||
+      a.id.localeCompare(b.id)
+    );
+  }
+  cardLink(object) {
+    const link = document.createElement("a");
+    link.className = "object-link";
+    link.href =
+      this.kind === "areas"
+        ? `/config/areas/area/${encodeURIComponent(object.id)}`
+        : this.kind === "devices"
+          ? `/config/devices/device/${encodeURIComponent(object.id)}`
+          : `/config/entities?more-info-entity-id=${encodeURIComponent(object.entity_id || object.name)}`;
+    link.target = "_blank";
+    link.rel = "noopener";
+    link.title = this.words.openCard;
+    link.setAttribute(
+      "aria-label",
+      `${this.words.openCard}: ${this.objectLabel(object)}`,
+    );
+    const icon = document.createElement("ha-icon");
+    icon.icon = "mdi:open-in-new";
+    link.append(icon);
+    return link;
   }
   objectLabel(object) {
     if (this.kind === "areas") return object.name;
@@ -514,13 +553,7 @@ export class IDManagerPanel extends (globalThis.HTMLElement || class {}) {
           .toLocaleLowerCase()
           .includes(filter),
       )
-      .sort(
-        (a, b) =>
-          Number(Boolean(this.store.saved[this.kind][b.id])) -
-            Number(Boolean(this.store.saved[this.kind][a.id])) ||
-          this.objectLabel(a).localeCompare(this.objectLabel(b)) ||
-          a.id.localeCompare(b.id),
-      );
+      .sort((a, b) => this.compareObjects(a, b));
     const list = q("#object-list");
     list.replaceChildren();
     for (const object of rows) {
@@ -540,7 +573,10 @@ export class IDManagerPanel extends (globalThis.HTMLElement || class {}) {
         this.fill();
         q("#part").focus();
       };
-      list.append(option);
+      const wrapper = document.createElement("div");
+      wrapper.className = "object-choice";
+      wrapper.append(option, this.cardLink(object));
+      list.append(wrapper);
     }
     this.positionPicker();
   }
@@ -548,7 +584,7 @@ export class IDManagerPanel extends (globalThis.HTMLElement || class {}) {
     const popup = this.shadowRoot?.querySelector("#object-dropdown");
     if (!popup || popup.hidden) return;
     const anchor = this.shadowRoot
-      .querySelector("#object")
+      .querySelector(".selected-row")
       .getBoundingClientRect();
     const viewport = window.visualViewport;
     const top = viewport?.offsetTop || 0,
@@ -609,6 +645,11 @@ export class IDManagerPanel extends (globalThis.HTMLElement || class {}) {
       q("#object"),
       this.store.objects[this.kind].find((o) => o.id === id),
     );
+    const current = this.store.objects[this.kind].find(
+      (object) => object.id === id,
+    );
+    q("#selected-link").replaceChildren();
+    if (current) q("#selected-link").append(this.cardLink(current));
     if (!q("#object-dropdown").hidden) this.renderOptions();
     q("#count").textContent = `${w.changed}: ${this.store.count}`;
     q("#validation").textContent = this.store.valid ? "" : w.invalid;

@@ -51,6 +51,13 @@ try {
   await q("#open").click();
   await q("#editor-dialog").waitFor({ state: "visible" });
   await choose("a");
+  assert.ok(
+    await q("#object").evaluate((node) => {
+      const a = node.querySelector(".object-name").getBoundingClientRect();
+      const b = node.querySelector(".object-own").getBoundingClientRect();
+      return Math.abs(a.top + a.height / 2 - b.top - b.height / 2) < 1;
+    }),
+  );
   assert.equal(
     await q("#selected-link a").getAttribute("href"),
     "/config/areas/area/a",
@@ -109,7 +116,7 @@ try {
   await q('[data-kind="devices"]').click();
   assert.match(await q("#object").textContent(), /Ванная\/Нептун/);
   assert.equal(await q("#object .object-icon").count(), 1);
-  assert.equal(await q("#object .id-chip.prefix").textContent(), "bathroom/");
+  assert.equal(await q("#object .id-chip.prefix").textContent(), "bathroom");
   assert.equal(
     await q("#selected-link a").getAttribute("href"),
     "/config/devices/device/d",
@@ -132,6 +139,22 @@ try {
   });
   assert.ok(alignment.first < 1 && alignment.second < 1 && alignment.separated);
   await q("#object").click();
+  assert.ok(
+    await q('.object-option[data-object-id="d"]').evaluate((node) => {
+      const box = (s) => node.querySelector(s).getBoundingClientRect();
+      const name = box(".object-name"),
+        hint = box(".object-description"),
+        prefix = box(".object-prefix"),
+        own = box(".object-own");
+      return (
+        getComputedStyle(node).display === "grid" &&
+        Math.abs(name.top + name.height / 2 - prefix.top - prefix.height / 2) <
+          1 &&
+        Math.abs(hint.top + hint.height / 2 - own.top - own.height / 2) < 1 &&
+        own.top >= prefix.bottom
+      );
+    }),
+  );
   assert.deepEqual(
     await q(".object-option").evaluateAll((nodes) =>
       nodes.map((node) => node.dataset.objectId),
@@ -151,7 +174,7 @@ try {
   );
   assert.equal(
     await q("#object .id-chip.prefix").textContent(),
-    "lounge/neptun/",
+    "lounge/neptun",
   );
   assert.equal(
     await q(

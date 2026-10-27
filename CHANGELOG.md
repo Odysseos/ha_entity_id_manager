@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.3.7
+
+- Keep area names and ID parts on one line in both picker views.
+- Use the same two-row grid for device and entity list items and the selected object.
+- Remove trailing slashes from parent ID prefixes.
+
 ## 0.3.6
 
 - Align parent ID prefixes with object names and editable ID parts with descriptions in two rows.

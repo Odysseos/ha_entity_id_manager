@@ -62,17 +62,17 @@ const cancelled = new DraftStore(snapshot);
 assert.equal(cancelled.count, 0);
 assert.equal(cancelled.value("areas", "a"), "living_room");
 assert.equal(store.prefix("areas", { id: "a" }), "");
-assert.equal(store.prefix("devices", { area_id: "a" }), "lounge/");
-assert.equal(store.prefix("devices", {}), "<area_id>/");
-assert.equal(store.prefix("entities", { area_id: "a" }), "lounge/<device_id>/");
+assert.equal(store.prefix("devices", { area_id: "a" }), "lounge");
+assert.equal(store.prefix("devices", {}), "<area_id>");
+assert.equal(store.prefix("entities", { area_id: "a" }), "lounge/<device_id>");
 store.set("devices", "d", "radiator");
 assert.equal(
   store.prefix("entities", { area_id: "a", device_id: "d" }),
-  "lounge/radiator/",
+  "lounge/radiator",
 );
 store.set("areas", "a", "");
 assert.equal(
   store.prefix("entities", { area_id: "a", device_id: "d" }),
-  "<area_id>/radiator/",
+  "<area_id>/radiator",
 );
 console.log("Editor drafts: passed");

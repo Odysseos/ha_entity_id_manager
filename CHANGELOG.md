@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.3.4
+
+- Give unchanged ID chips a subtle accent background so they remain visible on highlighted rows, without borders.
+
 ## 0.3.3
 
 - Use the same area-aware sorting for devices and entities, with unassigned objects last.

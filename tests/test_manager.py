@@ -473,3 +473,29 @@ async def test_panel_preview_apply_and_automatic(ctx):
     assert er.async_get(hass).async_get(row.new)
     assert manager.snapshot() == []
     await hass.async_stop()
+
+
+@pytest.mark.asyncio
+async def test_editor_object_context_and_icons(ctx):
+    from custom_components.entity_id_manager.editor import objects
+
+    hass, entry, area, device, entity = await ctx()
+    ar.async_get(hass).async_update(area.id, icon="mdi:shower")
+    kitchen = ar.async_get(hass).async_create("Кухня")
+    other = dr.async_get(hass).async_get_or_create(
+        config_entry_id=entry.entry_id, identifiers={("demo", "other")}, name="Нептун"
+    )
+    dr.async_get(hass).async_update_device(other.id, area_id=kitchen.id)
+    er.async_get(hass).async_update_entity(entity.entity_id, area_id=kitchen.id, icon="mdi:water")
+    data = objects(hass)
+    assert next(o for o in data["areas"] if o["id"] == area.id)["icon"] == "mdi:shower"
+    first = next(o for o in data["devices"] if o["id"] == device.id)
+    second = next(o for o in data["devices"] if o["id"] == other.id)
+    assert first["name"] == second["name"] == "Нептун"
+    assert first["area_name"] == "Ванная" and second["area_name"] == "Кухня"
+    row = next(o for o in data["entities"] if o["id"] == entity.id)
+    assert row["area_name"] == "Кухня"
+    assert row["device_name"] == "Нептун"
+    assert row["entity_id"] == entity.entity_id
+    assert row["icon"] == "mdi:water"
+    await hass.async_stop()

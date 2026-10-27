@@ -89,6 +89,9 @@ Object.assign(WORDS.en, {
   duplicate_target: "Duplicate target ID",
 });
 
+Object.assign(WORDS.ru, { noArea: "Без зоны", noDevice: "Без устройства" });
+Object.assign(WORDS.en, { noArea: "No area", noDevice: "No device" });
+
 export class DraftStore {
   constructor(snapshot) {
     this.revision = snapshot.revision;
@@ -179,7 +182,7 @@ export class IDManagerPanel extends (globalThis.HTMLElement || class {}) {
       label{display:block;margin:22px 0 6px;font-size:14px;color:var(--secondary-text-color,#666)}input{box-sizing:border-box;width:100%;padding:16px 12px;font:inherit;color:var(--primary-text-color,#222);background:var(--secondary-background-color,#f5f5f5);border:0;border-bottom:1px solid var(--secondary-text-color,#777);border-radius:4px 4px 0 0}.tools{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}.actions{display:flex;justify-content:flex-end;gap:12px;margin-top:28px}.hint,.count{font-size:14px;color:var(--secondary-text-color,#666)}.error{color:var(--error-color,#b00020);white-space:pre-wrap}#status{white-space:pre-wrap}@media(max-width:600px){main{margin:16px}dialog{padding:20px}.tabs{gap:0}.tabs button{padding:10px}}
 
       [hidden]{display:none!important}.picker{position:relative}#object{border-radius:4px 4px 0 0;border-bottom:1px solid var(--secondary-text-color,#777);background:var(--secondary-background-color,#f5f5f5);padding:16px 12px;width:100%;text-align:left}#object::after{content:"⌄";margin-left:auto;color:var(--secondary-text-color,#666)}
-      .object-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap;color:var(--primary-text-color,#222);font-weight:normal}.object-name{overflow-wrap:anywhere}.id-chip{font-family:monospace;font-size:.92em;border-radius:4px;padding:3px 7px;overflow-wrap:anywhere;background:var(--secondary-background-color,#eee);color:var(--primary-text-color,#222)}.id-chip.removed{background:color-mix(in srgb,var(--error-color,#db4437) 22%,var(--card-background-color,white));text-decoration:line-through;text-decoration-thickness:1.5px}.id-chip.added{background:color-mix(in srgb,var(--success-color,#0f9d58) 24%,var(--card-background-color,white))}
+      .object-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap;color:var(--primary-text-color,#222);font-weight:normal}.object-icon{flex:0 0 24px;--mdc-icon-size:24px;color:var(--secondary-text-color,#666)}.object-name{overflow-wrap:anywhere}.id-chip{font-family:monospace;font-size:.92em;border-radius:4px;padding:3px 7px;overflow-wrap:anywhere;background:var(--secondary-background-color,#eee);color:var(--primary-text-color,#222)}.id-chip.removed{background:color-mix(in srgb,var(--error-color,#db4437) 22%,var(--card-background-color,white));text-decoration:line-through;text-decoration-thickness:1.5px}.id-chip.added{background:color-mix(in srgb,var(--success-color,#0f9d58) 24%,var(--card-background-color,white))}
       #object-dropdown{display:flex;flex-direction:column;position:fixed;inset:auto;margin:0;box-sizing:border-box;overflow:hidden;z-index:2;background:var(--card-background-color,white);border:1px solid var(--divider-color,#ccc);border-radius:0 0 8px 8px;box-shadow:0 6px 18px #0003}#object-search{display:block;flex:0 0 auto;border-radius:0;margin:0;line-height:1.5;min-height:56px}#object-search:focus-visible{outline-offset:-2px}#object-list{flex:1 1 auto;min-height:0;max-height:none;overflow:auto;overscroll-behavior:contain;padding-top:6px}#object-list button{box-sizing:border-box;min-height:48px;line-height:1.5;border-radius:0;display:flex;width:100%;text-align:left;padding:14px 12px}#object-list button:hover,#object-list button:focus-visible,#object-list button[aria-selected=true]{background:var(--secondary-background-color,#eee)}
       .automatic{display:flex;align-items:center;gap:12px}.automatic input,.preview-row input{width:auto;min-height:0;flex:0 0 auto}.preview-row{display:flex;align-items:flex-start;gap:12px;padding:12px 0;border-bottom:1px solid var(--divider-color,#ddd)}.preview-ids{overflow-wrap:anywhere;line-height:1.6}.preview-ids code{display:block}.preview-row .error{font-size:14px}
     </style><header><ha-menu-button></ha-menu-button><h1>Entity ID Manager</h1></header><main><h2>${w.title}</h2><p>${w.intro}</p><button id="open" class="primary">${w.open}</button><button id="preview-open">${w.preview}</button><label class="automatic"><input id="automatic" type="checkbox" disabled> ${w.automatic}</label><p id="status" role="status"></p></main>
@@ -443,12 +446,52 @@ export class IDManagerPanel extends (globalThis.HTMLElement || class {}) {
       );
     this.fill();
   }
+  objectLabel(object) {
+    if (this.kind === "areas") return object.name;
+    if (this.kind === "devices")
+      return `${object.area_name || this.words.noArea}/${object.name}`;
+    return `${object.area_name || this.words.noArea}/${object.device_name || this.words.noDevice}/${object.name}`;
+  }
   renderObject(node, object) {
     node.replaceChildren();
     if (!object) return;
+    const state = object.entity_id
+      ? this._hass.states?.[object.entity_id]
+      : null;
+    const icon = document.createElement(state ? "ha-state-icon" : "ha-icon");
+    icon.className = "object-icon";
+    icon.setAttribute("aria-hidden", "true");
+    if (state) {
+      icon.hass = this._hass;
+      icon.stateObj = state;
+      if (object.icon) icon.icon = object.icon;
+    } else {
+      const domain = object.entity_id?.split(".")[0];
+      const defaults = {
+        sensor: "mdi:eye",
+        binary_sensor: "mdi:radiobox-marked",
+        switch: "mdi:toggle-switch",
+        light: "mdi:lightbulb",
+        cover: "mdi:window-shutter",
+        climate: "mdi:thermostat",
+        text: "mdi:form-textbox",
+        select: "mdi:form-select",
+        number: "mdi:numeric",
+        button: "mdi:gesture-tap-button",
+      };
+      icon.icon =
+        object.icon ||
+        (this.kind === "areas"
+          ? "mdi:floor-plan"
+          : this.kind === "devices"
+            ? "mdi:devices"
+            : defaults[domain] || "mdi:shape");
+    }
+    node.append(icon);
     const name = document.createElement("span");
     name.className = "object-name";
-    name.textContent = object.name;
+    name.textContent = this.objectLabel(object);
+    if (object.entity_id) name.title = object.entity_id;
     node.append(name);
     for (const segment of this.store.segments(this.kind, object.id)) {
       const chip = document.createElement("span");
@@ -463,7 +506,8 @@ export class IDManagerPanel extends (globalThis.HTMLElement || class {}) {
     const rows = [...this.store.objects[this.kind]]
       .filter((object) =>
         [
-          object.name,
+          this.objectLabel(object),
+          object.entity_id || "",
           ...this.store.segments(this.kind, object.id).map((v) => v.value),
         ]
           .join(" ")
@@ -474,7 +518,7 @@ export class IDManagerPanel extends (globalThis.HTMLElement || class {}) {
         (a, b) =>
           Number(Boolean(this.store.saved[this.kind][b.id])) -
             Number(Boolean(this.store.saved[this.kind][a.id])) ||
-          a.name.localeCompare(b.name) ||
+          this.objectLabel(a).localeCompare(this.objectLabel(b)) ||
           a.id.localeCompare(b.id),
       );
     const list = q("#object-list");

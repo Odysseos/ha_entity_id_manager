@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.3.1
+
+- Add icons to object selection rows and the selected object.
+- Show devices with their area and entities with their area and device.
+- Search entity IDs as well as object names and context paths.
+- Install the Home Assistant frontend explicitly for CI tests and configure fixture loop scope.
+
 ## 0.3.0
 
 - Open the editor directly when navigating from the integration settings gear.

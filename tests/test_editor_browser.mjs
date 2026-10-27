@@ -27,7 +27,7 @@ try {
       contentType: "text/html",
       body: `<!doctype html><html lang="ru"><meta charset="UTF-8"><body style="margin:0;--primary-text-color:#222;--primary-color:#009fbd;--primary-background-color:#fafafa;--card-background-color:white;--secondary-background-color:#f1f1f1"><entity-id-manager-panel></entity-id-manager-panel><script type="module">
     import '/editor.js';
-    const snapshot={revision:'r1',mappings:{areas:{a:'living_room'},devices:{d:'neptun'},entities:{}},objects:{areas:[{id:'a',name:'Гостиная'},{id:'b',name:'Ванная'}],devices:[{id:'d',name:'Нептун'}],entities:[{id:'e',name:'sensor.test'}]}};
+    const snapshot={revision:'r1',mappings:{areas:{a:'living_room'},devices:{d:'neptun'},entities:{}},objects:{areas:[{id:'a',name:'Гостиная'},{id:'b',name:'Ванная'}],devices:[{id:'d',name:'Нептун',area_name:'Ванная'}],entities:[{id:'e',name:'Температура',entity_id:'sensor.test',area_name:'Кухня',device_name:'Мультисенсор'}]}};
     window.test={snapshot,calls:[],fail:false};
     document.querySelector('entity-id-manager-panel').hass={locale:{language:'ru'},callWS:async(msg)=>{
       if(msg.type.endsWith('/get'))return structuredClone(window.test.snapshot);
@@ -102,6 +102,16 @@ try {
   await choose("b");
   await q("#part").fill("bathroom");
   await q('[data-kind="devices"]').click();
+  assert.match(await q("#object").textContent(), /Ванная\/Нептун/);
+  assert.equal(await q("#object .object-icon").count(), 1);
+  await q('[data-kind="entities"]').click();
+  assert.match(
+    await q("#object").textContent(),
+    /Кухня\/Мультисенсор\/Температура/,
+  );
+  assert.equal(await q("#object .object-icon").count(), 1);
+  await q('[data-kind="devices"]').click();
+
   await q("#part").fill("water_guard");
   await q('[data-kind="areas"]').click();
   await choose("a");

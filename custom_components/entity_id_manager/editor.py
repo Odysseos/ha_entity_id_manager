@@ -31,18 +31,49 @@ def revision(entry):
 
 
 def objects(hass):
-    return {
-        "areas": [{"id": o.id, "name": o.name} for o in ar.async_get(hass).areas.values()],
-        "devices": [
-            {"id": o.id, "name": o.name_by_user or o.name or o.id}
-            for o in dr.async_get(hass).devices.values()
+    areas = ar.async_get(hass)
+    devices = dr.async_get(hass)
+    registry = er.async_get(hass)
+
+    def area_name(area_id):
+        area = areas.async_get_area(area_id) if area_id else None
+        return area.name if area else None
+
+    result = {
+        "areas": [
+            {"id": obj.id, "name": obj.name, "icon": obj.icon or "mdi:floor-plan"}
+            for obj in areas.areas.values()
         ],
-        "entities": [
-            {"id": o.id, "name": o.entity_id}
-            for o in er.async_get(hass).entities.values()
-            if o.platform != DOMAIN
-        ],
+        "devices": [],
+        "entities": [],
     }
+    for obj in devices.devices.values():
+        result["devices"].append(
+            {
+                "id": obj.id,
+                "name": obj.name_by_user or obj.name or obj.id,
+                "area_name": area_name(dr.async_get_effective_area_id(hass, obj)),
+                "icon": "mdi:devices",
+            }
+        )
+    for obj in registry.entities.values():
+        if obj.platform == DOMAIN:
+            continue
+        device = devices.async_get(obj.device_id) if obj.device_id else None
+        state = hass.states.get(obj.entity_id)
+        result["entities"].append(
+            {
+                "id": obj.id,
+                "name": er.async_get_unprefixed_name(hass, obj) or obj.entity_id,
+                "entity_id": obj.entity_id,
+                "area_name": area_name(er.async_get_effective_area_id(hass, obj)),
+                "device_name": (device.name_by_user or device.name) if device else None,
+                "icon": obj.icon
+                or (state.attributes.get("icon") if state else None)
+                or obj.original_icon,
+            }
+        )
+    return result
 
 
 def snapshot(hass, entry):

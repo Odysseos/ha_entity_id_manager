@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.3.8
+
+- Highlight draft parent ID parts in green within the shared prefix, including placeholders for pending removals.
+- Keep unchanged parent parts yellow and omit removed old values from the prefix.
+
 ## 0.3.7
 
 - Keep area names and ID parts on one line in both picker views.

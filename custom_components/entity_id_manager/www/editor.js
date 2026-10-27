@@ -133,12 +133,20 @@ export class DraftStore {
       result.push({ value: this.drafts[key][id], kind: "added" });
     return result;
   }
+  parentParts(key, object) {
+    if (key === "areas") return [];
+    const parts = [["areas", object.area_id, "<area_id>"]];
+    if (key === "entities")
+      parts.push(["devices", object.device_id, "<device_id>"]);
+    return parts.map(([section, id, placeholder]) => ({
+      value: this.value(section, id) || placeholder,
+      kind: Object.hasOwn(this.drafts[section], id) ? "added" : "prefix",
+    }));
+  }
   prefix(key, object) {
-    if (key === "areas") return "";
-    const area = this.value("areas", object.area_id) || "<area_id>";
-    if (key === "devices") return area;
-    const device = this.value("devices", object.device_id) || "<device_id>";
-    return `${area}/${device}`;
+    return this.parentParts(key, object)
+      .map((part) => part.value)
+      .join("/");
   }
   changes() {
     return structuredClone(this.drafts);
@@ -192,7 +200,7 @@ export class IDManagerPanel extends (globalThis.HTMLElement || class {}) {
       label{display:block;margin:22px 0 6px;font-size:14px;color:var(--secondary-text-color,#666)}input{box-sizing:border-box;width:100%;padding:16px 12px;font:inherit;color:var(--primary-text-color,#222);background:var(--secondary-background-color,#f5f5f5);border:0;border-bottom:1px solid var(--secondary-text-color,#777);border-radius:4px 4px 0 0}.tools{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}.actions{display:flex;justify-content:flex-end;gap:12px;margin-top:28px}.hint,.count{font-size:14px;color:var(--secondary-text-color,#666)}.error{color:var(--error-color,#b00020);white-space:pre-wrap}#status{white-space:pre-wrap}@media(max-width:600px){main{margin:16px}dialog{padding:20px}.tabs{gap:0}.tabs button{padding:10px}}
 
       [hidden]{display:none!important}.picker{position:relative}#object{border-radius:4px 4px 0 0;border-bottom:1px solid var(--secondary-text-color,#777);background:var(--secondary-background-color,#f5f5f5);padding:16px 12px;width:100%;text-align:left}#object::after{content:"⌄";margin-left:auto;color:var(--secondary-text-color,#666)}
-      .object-row{display:grid;grid-template-columns:24px minmax(0,1fr) minmax(0,1fr) auto;align-items:center;column-gap:10px;row-gap:4px;color:var(--primary-text-color,#222);font-weight:normal}.object-icon{grid-column:1;grid-row:1 / 3;--mdc-icon-size:24px;color:var(--secondary-text-color,#666)}.object-text{display:contents}.object-name{grid-column:2;grid-row:1}.object-description{grid-column:2;grid-row:2}.object-prefix{grid-column:3;grid-row:1}.object-own{grid-column:3;grid-row:2}.object-prefix,.object-own{display:flex;flex-wrap:wrap;gap:6px;min-width:0}.object-row::after{grid-column:4;grid-row:1 / 3}.object-name{display:block;overflow-wrap:anywhere}.object-description{display:block;font-size:.8em;line-height:1.4;color:var(--secondary-text-color,#666);margin-top:0}.id-chip{font-family:monospace;font-size:.92em;border-radius:4px;padding:3px 7px;overflow-wrap:anywhere;background:color-mix(in srgb,#2196f3 18%,var(--card-background-color,#fff));color:var(--primary-text-color,#222)}.id-chip.prefix{background:color-mix(in srgb,#ffc107 22%,var(--card-background-color,#fff))}.id-chip.removed{background:color-mix(in srgb,var(--error-color,#db4437) 22%,var(--card-background-color,white));text-decoration:line-through;text-decoration-thickness:1.5px}.id-chip.added{background:color-mix(in srgb,var(--success-color,#0f9d58) 24%,var(--card-background-color,white))}
+      .object-row{display:grid;grid-template-columns:24px minmax(0,1fr) minmax(0,1fr) auto;align-items:center;column-gap:10px;row-gap:4px;color:var(--primary-text-color,#222);font-weight:normal}.object-icon{grid-column:1;grid-row:1 / 3;--mdc-icon-size:24px;color:var(--secondary-text-color,#666)}.object-text{display:contents}.object-name{grid-column:2;grid-row:1}.object-description{grid-column:2;grid-row:2}.object-prefix{grid-column:3;grid-row:1}.object-own{grid-column:3;grid-row:2}.object-prefix,.object-own{display:flex;flex-wrap:wrap;gap:6px;min-width:0}.object-row::after{grid-column:4;grid-row:1 / 3}.object-name{display:block;overflow-wrap:anywhere}.object-description{display:block;font-size:.8em;line-height:1.4;color:var(--secondary-text-color,#666);margin-top:0}.id-chip{font-family:monospace;font-size:.92em;border-radius:4px;padding:3px 7px;overflow-wrap:anywhere;background:color-mix(in srgb,#2196f3 18%,var(--card-background-color,#fff));color:var(--primary-text-color,#222)}.id-chip.prefix{background:color-mix(in srgb,#ffc107 22%,var(--card-background-color,#fff))}.parent-part.added{background:color-mix(in srgb,var(--success-color,#0f9d58) 24%,var(--card-background-color,white));border-radius:3px;box-shadow:0 0 0 3px color-mix(in srgb,var(--success-color,#0f9d58) 24%,var(--card-background-color,white))}.id-chip.removed{background:color-mix(in srgb,var(--error-color,#db4437) 22%,var(--card-background-color,white));text-decoration:line-through;text-decoration-thickness:1.5px}.id-chip.added{background:color-mix(in srgb,var(--success-color,#0f9d58) 24%,var(--card-background-color,white))}
       .area-row{grid-template-columns:24px auto minmax(0,1fr) auto}.area-row .object-icon,.area-row::after{grid-row:1}.area-row .object-own{grid-row:1}.area-row .object-prefix{display:none}
       #object-dropdown{display:flex;flex-direction:column;position:fixed;inset:auto;margin:0;box-sizing:border-box;overflow:hidden;z-index:2;background:var(--card-background-color,white);border:1px solid var(--divider-color,#ccc);border-radius:0 0 8px 8px;box-shadow:0 6px 18px #0003}#object-search{display:block;flex:0 0 auto;border-radius:0;margin:0;line-height:1.5;min-height:56px}#object-search:focus-visible{outline-offset:-2px}#object-list{flex:1 1 auto;min-height:0;max-height:none;overflow:auto;overscroll-behavior:contain;padding-top:6px}#object-list button{box-sizing:border-box;min-height:48px;line-height:1.5;border-radius:0;width:100%;text-align:left;padding:14px 12px}#object-list button:hover,#object-list button:focus-visible,#object-list button[aria-selected=true]{background:var(--secondary-background-color,#eee)}
       .automatic{display:flex;align-items:center;gap:12px}.automatic input,.preview-row input{width:auto;min-height:0;flex:0 0 auto}.preview-row{display:flex;align-items:flex-start;gap:12px;padding:12px 0;border-bottom:1px solid var(--divider-color,#ddd)}.preview-ids{overflow-wrap:anywhere;line-height:1.6}.preview-ids code{display:block}.preview-row .error{font-size:14px}
@@ -559,7 +567,15 @@ export class IDManagerPanel extends (globalThis.HTMLElement || class {}) {
     if (prefix) {
       const chip = document.createElement("span");
       chip.className = "id-chip prefix";
-      chip.textContent = prefix;
+      for (const [index, part] of this.store
+        .parentParts(this.kind, object)
+        .entries()) {
+        if (index) chip.append("/");
+        const span = document.createElement("span");
+        span.className = `parent-part ${part.kind}`;
+        span.textContent = part.value;
+        chip.append(span);
+      }
       parentRow.append(chip);
     }
     for (const segment of this.store.segments(this.kind, object.id)) {

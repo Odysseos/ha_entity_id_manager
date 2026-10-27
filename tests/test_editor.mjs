@@ -75,4 +75,15 @@ assert.equal(
   store.prefix("entities", { area_id: "a", device_id: "d" }),
   "<area_id>/radiator",
 );
+assert.deepEqual(
+  store.parentParts("entities", { area_id: "a", device_id: "d" }),
+  [
+    { value: "<area_id>", kind: "added" },
+    { value: "radiator", kind: "added" },
+  ],
+);
+store.reset("areas", "a");
+assert.deepEqual(store.parentParts("devices", { area_id: "a" }), [
+  { value: "living_room", kind: "prefix" },
+]);
 console.log("Editor drafts: passed");

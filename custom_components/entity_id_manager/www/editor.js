@@ -15,7 +15,7 @@ const WORDS = {
     close: "Закрыть",
     open: "Открыть редактор",
     saved:
-      "Соответствия сохранены. Переименование сущностей выполняется отдельно через «Просмотр и применение» в настройках интеграции.",
+      "Соответствия сохранены. Для переименования сущностей нажмите «Просмотр и применение» на этой странице.",
     intro:
       "Измените части ID нескольких объектов и подтвердите их одной операцией. Отображаемые названия не меняются.",
     settings: "Настройки интеграции: просмотр и применение",
@@ -46,7 +46,7 @@ const WORDS = {
     close: "Close",
     open: "Open editor",
     saved:
-      "Mappings saved. Rename entities separately using Preview and apply in integration options.",
+      "Mappings saved. Rename entities using Preview and apply on this page.",
     intro:
       "Edit ID parts for several objects and confirm them together. Display names stay unchanged.",
     settings: "Integration options: preview and apply",
@@ -64,6 +64,30 @@ const WORDS = {
     search: "Search",
   },
 };
+
+Object.assign(WORDS.ru, {
+  preview: "Просмотр и применение",
+  apply: "Применить выбранные",
+  automatic: "Автоматически переименовывать новые сущности",
+  noChanges: "Нет сущностей, требующих переименования.",
+  references: "Ссылки в YAML, автоматизациях и панелях не обновляются.",
+  applied: "Переименовано сущностей",
+  previewError:
+    "Не удалось применить изменения. Откройте предпросмотр заново и проверьте журнал HA.",
+  occupied: "ID занят",
+  duplicate_target: "Одинаковый целевой ID",
+});
+Object.assign(WORDS.en, {
+  preview: "Preview and apply",
+  apply: "Apply selected",
+  automatic: "Automatically rename new entities",
+  noChanges: "No entities need renaming.",
+  references: "References in YAML, automations and dashboards are not updated.",
+  applied: "Entities renamed",
+  previewError: "Could not apply changes. Reopen preview and check the HA log.",
+  occupied: "ID is occupied",
+  duplicate_target: "Duplicate target ID",
+});
 
 export class DraftStore {
   constructor(snapshot) {
@@ -128,11 +152,22 @@ export class IDManagerPanel extends (globalThis.HTMLElement || class {}) {
   }
   disconnectedCallback() {
     this.cancel();
+    this.viewportEvents?.abort();
     this.initialized = false;
   }
   initialize() {
     this.initialized = true;
     this.render();
+    this.loadAutomatic();
+    if (new URL(window.location.href).searchParams.has("config_entry"))
+      this.open();
+    this.viewportEvents = new AbortController();
+    const options = { signal: this.viewportEvents.signal, capture: true };
+    const reposition = () => this.positionPicker();
+    window.addEventListener("resize", reposition, options);
+    window.addEventListener("scroll", reposition, options);
+    window.visualViewport?.addEventListener("resize", reposition, options);
+    window.visualViewport?.addEventListener("scroll", reposition, options);
   }
   render() {
     const w = this.words;
@@ -145,13 +180,23 @@ export class IDManagerPanel extends (globalThis.HTMLElement || class {}) {
 
       [hidden]{display:none!important}.picker{position:relative}#object{border-radius:4px 4px 0 0;border-bottom:1px solid var(--secondary-text-color,#777);background:var(--secondary-background-color,#f5f5f5);padding:16px 12px;width:100%;text-align:left}#object::after{content:"⌄";margin-left:auto;color:var(--secondary-text-color,#666)}
       .object-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap;color:var(--primary-text-color,#222);font-weight:normal}.object-name{overflow-wrap:anywhere}.id-chip{font-family:monospace;font-size:.92em;border-radius:4px;padding:3px 7px;overflow-wrap:anywhere;background:var(--secondary-background-color,#eee);color:var(--primary-text-color,#222)}.id-chip.removed{background:color-mix(in srgb,var(--error-color,#db4437) 22%,var(--card-background-color,white));text-decoration:line-through;text-decoration-thickness:1.5px}.id-chip.added{background:color-mix(in srgb,var(--success-color,#0f9d58) 24%,var(--card-background-color,white))}
-      #object-dropdown{position:absolute;top:100%;left:0;right:0;z-index:2;background:var(--card-background-color,white);border:1px solid var(--divider-color,#ccc);border-radius:0 0 8px 8px;box-shadow:0 6px 18px #0003}#object-search{border-radius:0}#object-list{max-height:230px;overflow:auto}#object-list button{border-radius:0;display:flex;width:100%;text-align:left;padding:14px 12px}#object-list button:hover,#object-list button:focus-visible,#object-list button[aria-selected=true]{background:var(--secondary-background-color,#eee)}
-    </style><header><ha-menu-button></ha-menu-button><h1>Entity ID Manager</h1></header><main><h2>${w.title}</h2><p>${w.intro}</p><button id="open" class="primary">${w.open}</button><p><a href="/config/integrations/integration/entity_id_manager">${w.settings}</a></p><p id="status" role="status"></p></main>
-    <dialog><div class="heading"><button id="close" aria-label="${w.close}">×</button><h2>${w.title}</h2></div><div class="tabs" role="tablist">${KEYS.map((k) => `<button role="tab" data-kind="${k}">${w[k]}</button>`).join("")}</div><label id="object-label">${w.choose}</label><div class="picker"><button id="object" class="object-row" aria-labelledby="object-label" aria-haspopup="listbox" aria-expanded="false" aria-controls="object-list"></button><div id="object-dropdown" hidden><input id="object-search" type="search" aria-label="${w.search}" placeholder="${w.search}" autocomplete="off"><div id="object-list" role="listbox" aria-labelledby="object-label"></div></div></div><label for="part">${w.part}</label><input id="part" type="text" autocomplete="off" autocapitalize="none" spellcheck="false"><div class="tools"><button id="clear">${w.clear}</button><button id="reset">${w.reset}</button></div><p id="validation" class="error" role="status"></p><p id="count" class="count"></p><p id="error" class="error" role="alert"></p><div class="actions"><button id="cancel">${w.cancel}</button><button id="confirm" class="primary">${w.confirm}</button></div></dialog>`;
+      #object-dropdown{display:flex;flex-direction:column;position:fixed;inset:auto;margin:0;box-sizing:border-box;overflow:hidden;z-index:2;background:var(--card-background-color,white);border:1px solid var(--divider-color,#ccc);border-radius:0 0 8px 8px;box-shadow:0 6px 18px #0003}#object-search{display:block;flex:0 0 auto;border-radius:0;margin:0;line-height:1.5;min-height:56px}#object-search:focus-visible{outline-offset:-2px}#object-list{flex:1 1 auto;min-height:0;max-height:none;overflow:auto;overscroll-behavior:contain;padding-top:6px}#object-list button{box-sizing:border-box;min-height:48px;line-height:1.5;border-radius:0;display:flex;width:100%;text-align:left;padding:14px 12px}#object-list button:hover,#object-list button:focus-visible,#object-list button[aria-selected=true]{background:var(--secondary-background-color,#eee)}
+      .automatic{display:flex;align-items:center;gap:12px}.automatic input,.preview-row input{width:auto;min-height:0;flex:0 0 auto}.preview-row{display:flex;align-items:flex-start;gap:12px;padding:12px 0;border-bottom:1px solid var(--divider-color,#ddd)}.preview-ids{overflow-wrap:anywhere;line-height:1.6}.preview-ids code{display:block}.preview-row .error{font-size:14px}
+    </style><header><ha-menu-button></ha-menu-button><h1>Entity ID Manager</h1></header><main><h2>${w.title}</h2><p>${w.intro}</p><button id="open" class="primary">${w.open}</button><button id="preview-open">${w.preview}</button><label class="automatic"><input id="automatic" type="checkbox" disabled> ${w.automatic}</label><p id="status" role="status"></p></main>
+    <dialog id="editor-dialog"><div class="heading"><button id="close" aria-label="${w.close}">×</button><h2>${w.title}</h2></div><div class="tabs" role="tablist">${KEYS.map((k) => `<button role="tab" data-kind="${k}">${w[k]}</button>`).join("")}</div><label id="object-label">${w.choose}</label><div class="picker"><button id="object" class="object-row" aria-labelledby="object-label" aria-haspopup="listbox" aria-expanded="false" aria-controls="object-list"></button><div id="object-dropdown" popover="manual" hidden><input id="object-search" type="search" aria-label="${w.search}" placeholder="${w.search}" autocomplete="off"><div id="object-list" role="listbox" aria-labelledby="object-label"></div></div></div><label for="part">${w.part}</label><input id="part" type="text" autocomplete="off" autocapitalize="none" spellcheck="false"><div class="tools"><button id="clear">${w.clear}</button><button id="reset">${w.reset}</button></div><p id="validation" class="error" role="status"></p><p id="count" class="count"></p><p id="error" class="error" role="alert"></p><div class="actions"><button id="cancel">${w.cancel}</button><button id="confirm" class="primary">${w.confirm}</button></div></dialog><dialog id="preview-dialog"><div class="heading"><button id="preview-close" aria-label="${w.close}">×</button><h2>${w.preview}</h2></div><p>${w.references}</p><div id="preview-rows"></div><p id="preview-error" class="error" role="alert"></p><div class="actions"><button id="preview-cancel">${w.cancel}</button><button id="preview-apply" class="primary" disabled>${w.apply}</button></div></dialog>`;
     const q = (s) => this.shadowRoot.querySelector(s);
     const menu = q("ha-menu-button");
     if (menu) menu.hass = this._hass;
     q("#open").onclick = () => this.open();
+    q("#preview-open").onclick = () => this.openPreview();
+    q("#automatic").onchange = () => this.setAutomatic();
+    q("#preview-close").onclick = q("#preview-cancel").onclick = () =>
+      this.closePreview();
+    q("#preview-dialog").addEventListener("cancel", (event) => {
+      event.preventDefault();
+      this.closePreview();
+    });
+    q("#preview-apply").onclick = () => this.applyPreview();
     q("#object").onclick = () => this.togglePicker();
     q("#object").onkeydown = (e) => {
       if (["ArrowDown", "ArrowUp"].includes(e.key)) {
@@ -227,6 +272,138 @@ export class IDManagerPanel extends (globalThis.HTMLElement || class {}) {
         this.kind = button.dataset.kind;
         this.selectKind();
       };
+  }
+  async loadAutomatic() {
+    const checkbox = this.shadowRoot.querySelector("#automatic");
+    try {
+      const data = await this._hass.callWS({
+        type: "entity_id_manager/editor/get",
+      });
+      checkbox.checked = Boolean(data.auto_new);
+      checkbox.disabled = false;
+    } catch (error) {
+      this.shadowRoot.querySelector("#status").textContent =
+        `${this.words.loadError} ${error.message || ""}`;
+    }
+  }
+  async setAutomatic() {
+    const checkbox = this.shadowRoot.querySelector("#automatic"),
+      requested = checkbox.checked;
+    checkbox.disabled = true;
+    try {
+      await this._hass.callWS({
+        type: "entity_id_manager/automatic",
+        enabled: requested,
+      });
+    } catch (error) {
+      checkbox.checked = !requested;
+      this.shadowRoot.querySelector("#status").textContent =
+        error.message || this.words.failed;
+    } finally {
+      checkbox.disabled = false;
+    }
+  }
+  closePreview() {
+    if (this.previewBusy) return;
+    this.shadowRoot.querySelector("#preview-dialog").close();
+    this.previewRows = [];
+  }
+  updatePreviewControls() {
+    const q = (s) => this.shadowRoot.querySelector(s);
+    q("#preview-apply").disabled =
+      this.previewBusy ||
+      ![...q("#preview-rows").querySelectorAll("input:checked")].length;
+    for (const selector of [
+      "#preview-close",
+      "#preview-cancel",
+      "#preview-rows input",
+    ])
+      for (const node of this.shadowRoot.querySelectorAll(selector))
+        node.disabled = this.previewBusy || node.dataset.conflict === "true";
+  }
+  async openPreview() {
+    if (this.busy || this.previewBusy) return;
+    const q = (s) => this.shadowRoot.querySelector(s),
+      w = this.words;
+    q("#preview-open").disabled = true;
+    try {
+      this.previewRows = await this._hass.callWS({
+        type: "entity_id_manager/preview",
+      });
+      q("#preview-rows").replaceChildren();
+      q("#preview-error").textContent = "";
+      if (!this.previewRows.length)
+        q("#preview-rows").textContent = w.noChanges;
+      for (const row of this.previewRows) {
+        const label = document.createElement("label");
+        label.className = "preview-row";
+        const checkbox = document.createElement("input");
+        checkbox.type = "checkbox";
+        checkbox.value = row.registry_id;
+        checkbox.dataset.conflict = String(Boolean(row.conflict));
+        checkbox.disabled = Boolean(row.conflict);
+        checkbox.onchange = () => this.updatePreviewControls();
+        const ids = document.createElement("span");
+        ids.className = "preview-ids";
+        for (const [name, value] of [
+          ["removed", row.old],
+          ["added", row.new],
+        ]) {
+          const code = document.createElement("code");
+          code.className = `id-chip ${name}`;
+          code.textContent = value;
+          ids.append(code);
+        }
+        if (row.conflict) {
+          const reason = document.createElement("span");
+          reason.className = "error";
+          reason.textContent = w[row.conflict] || row.conflict;
+          ids.append(reason);
+        }
+        label.append(checkbox, ids);
+        q("#preview-rows").append(label);
+      }
+      this.updatePreviewControls();
+      q("#preview-dialog").showModal();
+    } catch (error) {
+      q("#status").textContent = error.message || w.loadError;
+    } finally {
+      q("#preview-open").disabled = false;
+    }
+  }
+  async applyPreview() {
+    if (this.previewBusy) return;
+    const q = (s) => this.shadowRoot.querySelector(s),
+      selected = new Set(
+        [...q("#preview-rows").querySelectorAll("input:checked")].map(
+          (node) => node.value,
+        ),
+      );
+    const rows = this.previewRows
+      .filter((row) => selected.has(row.registry_id) && !row.conflict)
+      .map(({ registry_id, old, new: next }) => ({
+        registry_id,
+        old,
+        new: next,
+      }));
+    if (!rows.length) return;
+    this.previewBusy = true;
+    this.updatePreviewControls();
+    try {
+      const result = await this._hass.callWS({
+        type: "entity_id_manager/apply",
+        rows,
+      });
+      this.previewBusy = false;
+      this.closePreview();
+      q("#status").textContent = `${this.words.applied}: ${result.count}`;
+    } catch (error) {
+      q("#preview-error").textContent =
+        `${this.words.previewError} ${error.message || ""}`;
+    } finally {
+      this.previewBusy = false;
+      this.updatePreviewControls();
+    }
   }
   async open() {
     if (this.busy) return;
@@ -321,6 +498,31 @@ export class IDManagerPanel extends (globalThis.HTMLElement || class {}) {
       };
       list.append(option);
     }
+    this.positionPicker();
+  }
+  positionPicker() {
+    const popup = this.shadowRoot?.querySelector("#object-dropdown");
+    if (!popup || popup.hidden) return;
+    const anchor = this.shadowRoot
+      .querySelector("#object")
+      .getBoundingClientRect();
+    const viewport = window.visualViewport;
+    const top = viewport?.offsetTop || 0,
+      left = viewport?.offsetLeft || 0;
+    const bottom = top + (viewport?.height || window.innerHeight);
+    const right = left + (viewport?.width || window.innerWidth);
+    const margin = 8,
+      gap = 4;
+    const below = bottom - anchor.bottom - margin - gap;
+    const above = anchor.top - top - margin - gap;
+    const upward = below < 300 && above > below;
+    const available = upward ? above : below;
+    const cover = available < 120;
+    popup.style.width = `${Math.min(anchor.width, right - left - 2 * margin)}px`;
+    popup.style.maxHeight = `${Math.max(1, Math.min(520, cover ? bottom - top - 2 * margin : available))}px`;
+    popup.style.left = `${Math.max(left + margin, Math.min(anchor.left, right - popup.getBoundingClientRect().width - margin))}px`;
+    const height = popup.getBoundingClientRect().height;
+    popup.style.top = `${cover ? top + margin : upward ? anchor.top - gap - height : anchor.bottom + gap}px`;
   }
   togglePicker(force) {
     if (this.busy || !this.store) return;
@@ -333,12 +535,18 @@ export class IDManagerPanel extends (globalThis.HTMLElement || class {}) {
     q("#object-search").value = "";
     this.renderOptions();
     q("#object-dropdown").hidden = false;
+    q("#object-dropdown").showPopover();
+    this.positionPicker();
     q("#object").setAttribute("aria-expanded", "true");
     q("#object-search").focus();
   }
   closePicker() {
     const q = (s) => this.shadowRoot?.querySelector(s);
-    if (q("#object-dropdown")) q("#object-dropdown").hidden = true;
+    const popup = q("#object-dropdown");
+    if (popup) {
+      if (popup.matches(":popover-open")) popup.hidePopover();
+      popup.hidden = true;
+    }
     q("#object")?.setAttribute("aria-expanded", "false");
   }
   fill() {

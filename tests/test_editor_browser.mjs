@@ -32,6 +32,9 @@ try {
     document.querySelector('entity-id-manager-panel').hass={locale:{language:'ru'},callWS:async(msg)=>{
       if(msg.type.endsWith('/get'))return structuredClone(window.test.snapshot);
       window.test.calls.push(structuredClone(msg));
+      if(msg.type==='entity_id_manager/automatic'){snapshot.auto_new=msg.enabled;return {auto_new:msg.enabled};}
+      if(msg.type==='entity_id_manager/preview')return [{registry_id:'valid',old:'sensor.old',new:'sensor.next',conflict:''},{registry_id:'blocked',old:'sensor.other',new:'sensor.taken',conflict:'occupied'}];
+      if(msg.type==='entity_id_manager/apply')return {count:msg.rows.length};
       if(window.test.fail)throw {code:'stale_editor'};
       for(const[k,v]of Object.entries(msg.changes))for(const[id,part]of Object.entries(v)){if(part)snapshot.mappings[k][id]=part;else delete snapshot.mappings[k][id];}
       snapshot.revision='r2';return structuredClone(snapshot);
@@ -46,7 +49,7 @@ try {
     await q(`.object-option[data-object-id="${id}"]`).click();
   };
   await q("#open").click();
-  await q("dialog").waitFor({ state: "visible" });
+  await q("#editor-dialog").waitFor({ state: "visible" });
   await choose("a");
   await q("#part").fill("lounge");
   assert.deepEqual(await q("#object .id-chip").allTextContents(), [
@@ -67,7 +70,7 @@ try {
     ["living_room", "lounge"],
   );
   await page.keyboard.press("Escape");
-  assert.equal(await q("dialog").isVisible(), true);
+  assert.equal(await q("#editor-dialog").isVisible(), true);
   assert.equal(await q("#object-dropdown").isVisible(), false);
 
   await choose("b");
@@ -112,7 +115,7 @@ try {
     await page.keyboard.press("Escape");
   }
   await q("#confirm").click();
-  await q("dialog").waitFor({ state: "hidden" });
+  await q("#editor-dialog").waitFor({ state: "hidden" });
   const calls = await page.evaluate(() => window.test.calls);
   assert.equal(calls.length, 1);
   assert.deepEqual(calls[0].changes, {
@@ -128,14 +131,102 @@ try {
   await q("#error").filter({ hasText: "другом окне" }).waitFor();
   assert.equal(await q("#part").inputValue(), "living");
   await page.keyboard.press("Escape");
-  await q("dialog").waitFor({ state: "hidden" });
+  await q("#editor-dialog").waitFor({ state: "hidden" });
   await q("#open").click();
   await choose("a");
   assert.equal(await q("#part").inputValue(), "lounge");
   await q("#cancel").click();
+  await page.evaluate(() => {
+    window.test.snapshot.objects.areas = Array.from({ length: 60 }, (_, i) => ({
+      id: `area_${i}`,
+      name: `Комната ${String(i).padStart(2, "0")}`,
+    }));
+  });
+  await page.setViewportSize({ width: 1024, height: 1000 });
+  await q("#open").click();
+  await q("#object").click();
+  const geometry = await page
+    .locator("entity-id-manager-panel")
+    .evaluate((panel) => {
+      const root = panel.shadowRoot;
+      const popup = root.querySelector("#object-dropdown"),
+        dialog = root.querySelector("#editor-dialog");
+      const p = popup.getBoundingClientRect(),
+        d = dialog.getBoundingClientRect();
+      return {
+        topLayer: popup.matches(":popover-open"),
+        bottom: p.bottom,
+        dialogBottom: d.bottom,
+        height: p.height,
+        viewport: innerHeight,
+      };
+    });
+  assert.equal(geometry.topLayer, true);
+  assert.ok(
+    geometry.bottom > geometry.dialogBottom,
+    "Long list must extend beyond the dialog",
+  );
+  assert.ok(geometry.bottom <= geometry.viewport - 7);
+  assert.ok(geometry.height > 230);
+  const searchTop = (await q("#object-search").boundingBox()).y;
+  await q("#object-list").evaluate(
+    (node) => (node.scrollTop = node.scrollHeight),
+  );
+  assert.equal((await q("#object-search").boundingBox()).y, searchTop);
+  await q('.object-option[data-object-id="area_59"]').click();
+  assert.match(await q("#object").textContent(), /Комната 59/);
+  await page.setViewportSize({ width: 390, height: 640 });
+  await q("#object").click();
+  const small = await q("#object-dropdown").boundingBox();
+  assert.ok(small.x >= 7 && small.x + small.width <= 383);
+  assert.ok(small.y >= 7 && small.y + small.height <= 633);
+  await page.keyboard.press("Escape");
+  await page.setViewportSize({ width: 1024, height: 550 });
+  await page.locator("entity-id-manager-panel").evaluate((panel) => {
+    panel.shadowRoot.querySelector("#editor-dialog").style.transform =
+      "translateY(100px)";
+    panel.togglePicker(true);
+  });
+  const up = await q("#object-dropdown").boundingBox(),
+    anchor = await q("#object").boundingBox();
+  assert.ok(
+    up.y + up.height <= anchor.y,
+    "List must open upwards when lower space is limited",
+  );
+  assert.ok(up.y >= 7);
+  await page.keyboard.press("Escape");
+  await page
+    .locator("entity-id-manager-panel")
+    .evaluate(
+      (panel) =>
+        (panel.shadowRoot.querySelector("#editor-dialog").style.transform = ""),
+    );
+  await q("#cancel").click();
+  await q("#automatic").check();
+  await page.waitForFunction(() => window.test.snapshot.auto_new === true);
+  await q("#preview-open").click();
+  await q("#preview-dialog").waitFor({ state: "visible" });
+  assert.equal(
+    await q('#preview-rows input[value="blocked"]').isDisabled(),
+    true,
+  );
+  await q('#preview-rows input[value="valid"]').check();
+  await q("#preview-apply").click();
+  await q("#preview-dialog").waitFor({ state: "hidden" });
+  assert.match(await q("#status").textContent(), /Переименовано сущностей: 1/);
+  const applyCall = await page.evaluate(() =>
+    window.test.calls.find((call) => call.type === "entity_id_manager/apply"),
+  );
+  assert.deepEqual(applyCall.rows, [
+    { registry_id: "valid", old: "sensor.old", new: "sensor.next" },
+  ]);
+  await page.goto("http://editor.test/?config_entry=installed_entry");
+  await q("#editor-dialog").waitFor({ state: "visible" });
+  assert.equal(await q("#object").isVisible(), true);
+  await q("#cancel").click();
   assert.deepEqual(errors, []);
   console.log(
-    "Browser editor: selection, draft labels, reset, clear, cancel, batch save, validation and stale guard passed",
+    "Browser editor: selection, draft labels, reset, clear, cancel, batch save, validation, stale guard and viewport popover geometry, preview, automatic mode and direct settings entry passed",
   );
 } finally {
   await browser.close();

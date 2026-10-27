@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.3.0
+
+- Open the editor directly when navigating from the integration settings gear.
+- Add rename previews, selective application and automatic naming settings to the management page.
+- Validate preview rows against current registry state before applying changes.
+
+## 0.2.2
+
+- Display object selection above dialog boundaries using a top-layer popover.
+- Adapt list height and opening direction to the available viewport space.
+- Keep the search field visible while scrolling long object lists.
+
+## 0.2.1
+
+- Show saved, changed and removed ID parts with neutral, green and red chips without captions.
+- Add searchable object selection and keyboard navigation.
+- Fix spacing between the search field and the first object row.
+
 ## 0.2.0
 
 - Add an admin editor with object selection and inline ID-part editing.

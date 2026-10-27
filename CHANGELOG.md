@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.3.6
+
+- Align parent ID prefixes with object names and editable ID parts with descriptions in two rows.
+
 ## 0.3.5
 
 - Include integration names in device and entity descriptions.

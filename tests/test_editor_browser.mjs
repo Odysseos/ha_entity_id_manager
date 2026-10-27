@@ -115,6 +115,22 @@ try {
     "/config/devices/device/d",
   );
   assert.equal(await q("#selected-link a").getAttribute("target"), "_blank");
+  const alignment = await q("#object").evaluate((node) => {
+    const box = (selector) =>
+      node.querySelector(selector).getBoundingClientRect();
+    const name = box(".object-name"),
+      hint = box(".object-description");
+    const prefix = box(".object-prefix"),
+      own = box(".object-own");
+    return {
+      first: Math.abs(
+        (name.top + name.bottom - prefix.top - prefix.bottom) / 2,
+      ),
+      second: Math.abs((hint.top + hint.bottom - own.top - own.bottom) / 2),
+      separated: own.top >= prefix.bottom,
+    };
+  });
+  assert.ok(alignment.first < 1 && alignment.second < 1 && alignment.separated);
   await q("#object").click();
   assert.deepEqual(
     await q(".object-option").evaluateAll((nodes) =>

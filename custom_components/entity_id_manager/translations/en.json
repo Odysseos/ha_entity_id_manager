@@ -71,5 +71,18 @@
     "abort": {
       "no_changes": "No entities need renaming."
     }
+  },
+  "entity": {
+    "text": {
+      "area": {
+        "name": "Area ID part: {object}"
+      },
+      "device": {
+        "name": "Device ID part: {object}"
+      },
+      "entity": {
+        "name": "Entity ID suffix: {object}"
+      }
+    }
   }
 }

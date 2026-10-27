@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.1
+
+- Expose saved ID parts as editable text entities under the integration.
+- Show configured parts in object selectors and list configured objects first.
+- Exclude configuration text entities from rename operations.
+
 ## 0.1.0
 
 - Add independent area, device and entity ID parts through integration options.

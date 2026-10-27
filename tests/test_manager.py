@@ -307,5 +307,54 @@ async def test_real_integration_setup_and_options(tmp_path):
     )
     assert saved["type"] == "create_entry"
     assert entry.options["auto_new"] is True
+    area = ar.async_get(hass).async_create("Ванная")
+    hass.config_entries.async_update_entry(
+        entry, options={**entry.options, "areas": {area.id: "bathroom"}}
+    )
+    await hass.async_block_till_done()
+    texts = [
+        e
+        for e in er.async_get(hass).entities.values()
+        if e.platform == "entity_id_manager" and e.domain == "text"
+    ]
+    assert len(texts) == 1
+    text_id = texts[0].entity_id
+    assert hass.states.get(text_id).state == "bathroom"
+    await hass.services.async_call(
+        "text", "set_value", {"entity_id": text_id, "value": "washroom"}, blocking=True
+    )
+    await hass.async_block_till_done()
+    assert entry.options["areas"][area.id] == "washroom"
+    assert hass.states.get(text_id).state == "washroom"
+    assert hass.data["entity_id_manager"][entry.entry_id].snapshot() == []
+    select_flow = OptionsFlow()
+    select_flow.hass = hass
+    select_flow.handler = entry.entry_id
+    selection = await select_flow.async_step_area()
+    control = next(iter(selection["data_schema"].schema.values()))
+    assert control.config["options"][0]["label"] == "Ванная (washroom)"
+    await hass.services.async_call(
+        "text", "set_value", {"entity_id": text_id, "value": ""}, blocking=True
+    )
+    await hass.async_block_till_done()
+    assert area.id not in entry.options["areas"]
+    assert hass.states.get(text_id).state == ""
     assert await hass.config_entries.async_unload(entry.entry_id)
+    await hass.async_stop()
+
+
+@pytest.mark.asyncio
+async def test_selectors_show_saved_parts(ctx):
+    hass, entry, area, device, entity = await ctx()
+    flow = OptionsFlow()
+    flow.hass = hass
+    flow.handler = entry.entry_id
+    for method, value, label in [
+        (flow.async_step_area, area.id, "Ванная (bathroom)"),
+        (flow.async_step_device, device.id, "Нептун (neptun)"),
+        (flow.async_step_entity, entity.id, f"{entity.entity_id} (water_leak)"),
+    ]:
+        form = await method()
+        control = next(iter(form["data_schema"].schema.values()))
+        assert {"value": value, "label": label} in control.config["options"]
     await hass.async_stop()

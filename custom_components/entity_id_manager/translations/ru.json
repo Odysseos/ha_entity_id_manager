@@ -71,5 +71,18 @@
     "abort": {
       "no_changes": "Нет сущностей, требующих переименования."
     }
+  },
+  "entity": {
+    "text": {
+      "area": {
+        "name": "Часть ID зоны: {object}"
+      },
+      "device": {
+        "name": "Часть ID устройства: {object}"
+      },
+      "entity": {
+        "name": "Суффикс ID: {object}"
+      }
+    }
   }
 }

@@ -10,6 +10,7 @@ from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers import entity_registry as er
 from homeassistant.util import slugify
 
+from .const import DOMAIN
 from .naming import Rename, target_id
 
 
@@ -31,6 +32,8 @@ class Manager:
         fallbacks = dict(self.entry.data.get("fallback_suffixes", {}))
         original_fallbacks = dict(fallbacks)
         for entity in registry.entities.values():
+            if entity.platform == DOMAIN:
+                continue
             device = devices.async_get(entity.device_id) if entity.device_id else None
             area_id = er.async_get_effective_area_id(self.hass, entity)
             area = areas.get(area_id, "")

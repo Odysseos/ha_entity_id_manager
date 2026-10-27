@@ -42,23 +42,35 @@ class OptionsFlow(config_entries.OptionsFlow):
             self.kind = kind
             self.object_id = user_input["object_id"]
             return await self.async_step_value()
+        key = {"area": "areas", "device": "devices", "entity": "entities"}[kind]
+        configured = self.config_entry.options.get(key, {})
         if kind == "area":
-            control = selector.AreaSelector()
+            objects = [(obj.id, obj.name) for obj in ar.async_get(self.hass).areas.values()]
         elif kind == "device":
-            control = selector.DeviceSelector()
+            objects = [
+                (obj.id, obj.name_by_user or obj.name or obj.id)
+                for obj in dr.async_get(self.hass).devices.values()
+            ]
         else:
-            # Registry IDs remain stable when entity_id changes. Include disabled entities.
-            entries = er.async_get(self.hass).entities.values()
-            control = selector.SelectSelector(
-                selector.SelectSelectorConfig(
-                    options=[
-                        {"value": e.id, "label": e.entity_id}
-                        for e in sorted(entries, key=lambda e: e.entity_id)
-                    ],
-                    mode=selector.SelectSelectorMode.DROPDOWN,
-                    custom_value=False,
-                )
+            objects = [
+                (obj.id, obj.entity_id)
+                for obj in er.async_get(self.hass).entities.values()
+                if obj.platform != DOMAIN
+            ]
+        choices = [
+            {
+                "value": object_id,
+                "label": f"{name} ({configured[object_id]})" if object_id in configured else name,
+            }
+            for object_id, name in sorted(
+                objects, key=lambda item: (item[0] not in configured, item[1].casefold(), item[0])
             )
+        ]
+        control = selector.SelectSelector(
+            selector.SelectSelectorConfig(
+                options=choices, mode=selector.SelectSelectorMode.DROPDOWN, custom_value=False
+            )
+        )
         return self.async_show_form(
             step_id=kind, data_schema=vol.Schema({vol.Required("object_id"): control})
         )

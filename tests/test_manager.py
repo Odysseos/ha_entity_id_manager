@@ -487,10 +487,12 @@ async def test_editor_object_context_and_icons(ctx):
     )
     dr.async_get(hass).async_update_device(other.id, area_id=kitchen.id)
     er.async_get(hass).async_update_entity(entity.entity_id, area_id=kitchen.id, icon="mdi:water")
+    dr.async_get(hass).async_update_device(device.id, model="Model X", manufacturer="Vendor")
     data = objects(hass)
     assert next(o for o in data["areas"] if o["id"] == area.id)["icon"] == "mdi:shower"
     first = next(o for o in data["devices"] if o["id"] == device.id)
     second = next(o for o in data["devices"] if o["id"] == other.id)
+    assert first["description"] == "Model X · Vendor"
     assert first["name"] == second["name"] == "Нептун"
     assert first["area_name"] == "Ванная" and second["area_name"] == "Кухня"
     row = next(o for o in data["entities"] if o["id"] == entity.id)
@@ -498,4 +500,5 @@ async def test_editor_object_context_and_icons(ctx):
     assert row["device_name"] == "Нептун"
     assert row["entity_id"] == entity.entity_id
     assert row["icon"] == "mdi:water"
+    assert row["description"] == (entity.original_name_unprefixed or entity.original_name or "")
     await hass.async_stop()

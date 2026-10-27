@@ -54,6 +54,9 @@ def objects(hass):
                 "name": obj.name_by_user or obj.name or obj.id,
                 "area_name": area_name(dr.async_get_effective_area_id(hass, obj)),
                 "icon": "mdi:devices",
+                "description": " · ".join(
+                    dict.fromkeys(value for value in (obj.model, obj.manufacturer) if value)
+                ),
             }
         )
     for obj in registry.entities.values():
@@ -66,6 +69,7 @@ def objects(hass):
                 "id": obj.id,
                 "name": er.async_get_unprefixed_name(hass, obj) or obj.entity_id,
                 "entity_id": obj.entity_id,
+                "description": obj.original_name_unprefixed or obj.original_name or "",
                 "area_name": area_name(er.async_get_effective_area_id(hass, obj)),
                 "device_name": (device.name_by_user or device.name) if device else None,
                 "icon": obj.icon

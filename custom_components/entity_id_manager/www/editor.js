@@ -185,7 +185,7 @@ export class IDManagerPanel extends (globalThis.HTMLElement || class {}) {
       label{display:block;margin:22px 0 6px;font-size:14px;color:var(--secondary-text-color,#666)}input{box-sizing:border-box;width:100%;padding:16px 12px;font:inherit;color:var(--primary-text-color,#222);background:var(--secondary-background-color,#f5f5f5);border:0;border-bottom:1px solid var(--secondary-text-color,#777);border-radius:4px 4px 0 0}.tools{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}.actions{display:flex;justify-content:flex-end;gap:12px;margin-top:28px}.hint,.count{font-size:14px;color:var(--secondary-text-color,#666)}.error{color:var(--error-color,#b00020);white-space:pre-wrap}#status{white-space:pre-wrap}@media(max-width:600px){main{margin:16px}dialog{padding:20px}.tabs{gap:0}.tabs button{padding:10px}}
 
       [hidden]{display:none!important}.picker{position:relative}#object{border-radius:4px 4px 0 0;border-bottom:1px solid var(--secondary-text-color,#777);background:var(--secondary-background-color,#f5f5f5);padding:16px 12px;width:100%;text-align:left}#object::after{content:"⌄";margin-left:auto;color:var(--secondary-text-color,#666)}
-      .object-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap;color:var(--primary-text-color,#222);font-weight:normal}.object-icon{flex:0 0 24px;--mdc-icon-size:24px;color:var(--secondary-text-color,#666)}.object-name{overflow-wrap:anywhere}.id-chip{font-family:monospace;font-size:.92em;border-radius:4px;padding:3px 7px;overflow-wrap:anywhere;background:var(--secondary-background-color,#eee);color:var(--primary-text-color,#222)}.id-chip.removed{background:color-mix(in srgb,var(--error-color,#db4437) 22%,var(--card-background-color,white));text-decoration:line-through;text-decoration-thickness:1.5px}.id-chip.added{background:color-mix(in srgb,var(--success-color,#0f9d58) 24%,var(--card-background-color,white))}
+      .object-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap;color:var(--primary-text-color,#222);font-weight:normal}.object-icon{flex:0 0 24px;--mdc-icon-size:24px;color:var(--secondary-text-color,#666)}.object-text{min-width:0;overflow-wrap:anywhere}.object-name{display:block;overflow-wrap:anywhere}.object-description{display:block;font-size:.8em;line-height:1.4;color:var(--secondary-text-color,#666);margin-top:3px}.id-chip{font-family:monospace;font-size:.92em;border-radius:4px;padding:3px 7px;overflow-wrap:anywhere;background:var(--secondary-background-color,#eee);color:var(--primary-text-color,#222)}.id-chip.removed{background:color-mix(in srgb,var(--error-color,#db4437) 22%,var(--card-background-color,white));text-decoration:line-through;text-decoration-thickness:1.5px}.id-chip.added{background:color-mix(in srgb,var(--success-color,#0f9d58) 24%,var(--card-background-color,white))}
       #object-dropdown{display:flex;flex-direction:column;position:fixed;inset:auto;margin:0;box-sizing:border-box;overflow:hidden;z-index:2;background:var(--card-background-color,white);border:1px solid var(--divider-color,#ccc);border-radius:0 0 8px 8px;box-shadow:0 6px 18px #0003}#object-search{display:block;flex:0 0 auto;border-radius:0;margin:0;line-height:1.5;min-height:56px}#object-search:focus-visible{outline-offset:-2px}#object-list{flex:1 1 auto;min-height:0;max-height:none;overflow:auto;overscroll-behavior:contain;padding-top:6px}#object-list button{box-sizing:border-box;min-height:48px;line-height:1.5;border-radius:0;display:flex;width:100%;text-align:left;padding:14px 12px}#object-list button:hover,#object-list button:focus-visible,#object-list button[aria-selected=true]{background:var(--secondary-background-color,#eee)}
       .automatic{display:flex;align-items:center;gap:12px}.automatic input,.preview-row input{width:auto;min-height:0;flex:0 0 auto}.preview-row{display:flex;align-items:flex-start;gap:12px;padding:12px 0;border-bottom:1px solid var(--divider-color,#ddd)}.preview-ids{overflow-wrap:anywhere;line-height:1.6}.preview-ids code{display:block}.preview-row .error{font-size:14px}
       #selected-link{display:flex;flex:0 0 40px}.selected-row,.object-choice{display:flex;align-items:center;min-width:0}.selected-row{background:var(--secondary-background-color,#f5f5f5)}.selected-row #object{flex:1;min-width:0;width:auto}.object-link{display:flex;align-items:center;justify-content:center;flex:0 0 40px;min-height:44px;text-decoration:none;color:var(--secondary-text-color,#666);--mdc-icon-size:20px}.object-link:focus-visible{outline:2px solid var(--primary-color);outline-offset:-2px}.object-link:hover{color:var(--primary-color)}#object-list .object-option{flex:1;min-width:0;width:auto}.object-choice:hover{background:var(--secondary-background-color,#eee)}
@@ -453,7 +453,7 @@ export class IDManagerPanel extends (globalThis.HTMLElement || class {}) {
     this.fill();
   }
   compareObjects(a, b) {
-    if (this.kind === "devices") {
+    if (this.kind !== "areas") {
       const unassigned = Number(!a.area_name) - Number(!b.area_name);
       if (unassigned) return unassigned;
     }
@@ -531,7 +531,16 @@ export class IDManagerPanel extends (globalThis.HTMLElement || class {}) {
     name.className = "object-name";
     name.textContent = this.objectLabel(object);
     if (object.entity_id) name.title = object.entity_id;
-    node.append(name);
+    const text = document.createElement("span");
+    text.className = "object-text";
+    text.append(name);
+    if (object.description) {
+      const description = document.createElement("span");
+      description.className = "object-description";
+      description.textContent = object.description;
+      text.append(description);
+    }
+    node.append(text);
     for (const segment of this.store.segments(this.kind, object.id)) {
       const chip = document.createElement("span");
       chip.className = `id-chip ${segment.kind}`;
@@ -547,6 +556,7 @@ export class IDManagerPanel extends (globalThis.HTMLElement || class {}) {
         [
           this.objectLabel(object),
           object.entity_id || "",
+          object.description || "",
           ...this.store.segments(this.kind, object.id).map((v) => v.value),
         ]
           .join(" ")

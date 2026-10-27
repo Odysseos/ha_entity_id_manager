@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.3.3
+
+- Use the same area-aware sorting for devices and entities, with unassigned objects last.
+- Show device model and manufacturer below the name.
+- Show the original entity parameter name below the name and include descriptions in search.
+
 ## 0.3.2
 
 - Sort devices without an area after all devices assigned to areas.

@@ -1,0 +1,75 @@
+{
+  "title": "Entity ID Manager",
+  "config": {
+    "step": {
+      "user": {
+        "title": "Entity ID Manager",
+        "description": "Configure independent ID parts. Open integration options after setup."
+      }
+    },
+    "abort": {
+      "already_configured": "Already configured."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Manage entity IDs",
+        "menu_options": {
+          "area": "Area ID part",
+          "device": "Device ID part",
+          "entity": "Entity ID suffix",
+          "preview": "Preview and apply",
+          "automatic": "Automatic renaming"
+        }
+      },
+      "area": {
+        "title": "Select area",
+        "data": {
+          "object_id": "Area"
+        }
+      },
+      "device": {
+        "title": "Select device",
+        "data": {
+          "object_id": "Device"
+        }
+      },
+      "entity": {
+        "title": "Select entity",
+        "data": {
+          "object_id": "Entity"
+        }
+      },
+      "value": {
+        "title": "ID part",
+        "description": "Object: {object}. Lowercase ASCII letters, digits, underscores; start with a letter. Leave empty to remove the override. Open preview to apply.",
+        "data": {
+          "part": "ID part"
+        }
+      },
+      "preview": {
+        "title": "Select renames",
+        "description": "References in YAML, automations and dashboards are not updated. Conflicts (cannot be selected):\n{conflicts}",
+        "data": {
+          "selected": "Changes to apply"
+        }
+      },
+      "automatic": {
+        "title": "New entities",
+        "description": "Rename newly registered entities using saved rules. Existing entities and references are not updated.",
+        "data": {
+          "auto_new": "Automatically rename new entities"
+        }
+      }
+    },
+    "error": {
+      "invalid_part": "Use lowercase ASCII letters, digits and underscores; start with a letter.",
+      "nothing_selected": "Select at least one rename.",
+      "stale_preview": "Apply did not complete. Check logs and the refreshed preview; select changes again."
+    },
+    "abort": {
+      "no_changes": "No entities need renaming."
+    }
+  }
+}

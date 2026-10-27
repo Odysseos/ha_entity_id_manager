@@ -5,6 +5,7 @@ import json
 from copy import deepcopy
 
 import probatio as vol
+from homeassistant import loader
 from homeassistant.components import websocket_api
 from homeassistant.helpers import area_registry as ar
 from homeassistant.helpers import device_registry as dr
@@ -39,6 +40,21 @@ def objects(hass):
         area = areas.async_get_area(area_id) if area_id else None
         return area.name if area else None
 
+    def integration_name(domain):
+        try:
+            return loader.async_get_loaded_integration(hass, domain).name
+        except (loader.IntegrationNotLoaded, KeyError):
+            return domain
+
+    def device_integrations(device):
+        return sorted(
+            {
+                integration_name(entry.domain)
+                for entry_id in device.config_entries
+                if (entry := hass.config_entries.async_get_entry(entry_id)) is not None
+            }
+        )
+
     result = {
         "areas": [
             {"id": obj.id, "name": obj.name, "icon": obj.icon or "mdi:floor-plan"}
@@ -53,9 +69,14 @@ def objects(hass):
                 "id": obj.id,
                 "name": obj.name_by_user or obj.name or obj.id,
                 "area_name": area_name(dr.async_get_effective_area_id(hass, obj)),
+                "area_id": dr.async_get_effective_area_id(hass, obj),
                 "icon": "mdi:devices",
                 "description": " · ".join(
-                    dict.fromkeys(value for value in (obj.model, obj.manufacturer) if value)
+                    dict.fromkeys(
+                        value
+                        for value in (obj.model, obj.manufacturer, *device_integrations(obj))
+                        if value
+                    )
                 ),
             }
         )
@@ -69,8 +90,19 @@ def objects(hass):
                 "id": obj.id,
                 "name": er.async_get_unprefixed_name(hass, obj) or obj.entity_id,
                 "entity_id": obj.entity_id,
-                "description": obj.original_name_unprefixed or obj.original_name or "",
+                "description": " · ".join(
+                    dict.fromkeys(
+                        value
+                        for value in (
+                            obj.original_name_unprefixed or obj.original_name,
+                            integration_name(obj.platform),
+                        )
+                        if value
+                    )
+                ),
                 "area_name": area_name(er.async_get_effective_area_id(hass, obj)),
+                "area_id": er.async_get_effective_area_id(hass, obj),
+                "device_id": obj.device_id,
                 "device_name": (device.name_by_user or device.name) if device else None,
                 "icon": obj.icon
                 or (state.attributes.get("icon") if state else None)

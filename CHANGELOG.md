@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.3.5
+
+- Include integration names in device and entity descriptions.
+- Show a shared pale-yellow area/device prefix before each object’s editable ID part.
+- Use parent drafts in the prefix and placeholders for unassigned parent ID parts.
+
 ## 0.3.4
 
 - Give unchanged ID chips a subtle accent background so they remain visible on highlighted rows, without borders.

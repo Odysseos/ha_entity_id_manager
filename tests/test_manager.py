@@ -432,10 +432,43 @@ async def test_editor_admin_only(ctx):
 
     from homeassistant.exceptions import Unauthorized
 
-    from custom_components.entity_id_manager.editor import websocket_get, websocket_save
+    from custom_components.entity_id_manager.editor import (
+        websocket_apply,
+        websocket_automatic,
+        websocket_get,
+        websocket_preview,
+        websocket_save,
+    )
 
     hass, entry, area, device, entity = await ctx()
-    for handler in [websocket_get, websocket_save]:
+    for handler in [
+        websocket_get,
+        websocket_save,
+        websocket_preview,
+        websocket_apply,
+        websocket_automatic,
+    ]:
         with pytest.raises(Unauthorized):
             handler(hass, SimpleNamespace(user=SimpleNamespace(is_admin=False)), {"id": 1})
+    await hass.async_stop()
+
+
+@pytest.mark.asyncio
+async def test_panel_preview_apply_and_automatic(ctx):
+    from custom_components.entity_id_manager.editor import apply_preview, set_automatic, snapshot
+
+    hass, entry, area, device, entity = await ctx()
+    manager = Manager(hass, entry)
+    before = dict(entry.options)
+    await set_automatic(hass, manager, True)
+    assert snapshot(hass, entry)["auto_new"] is True
+    assert entry.options["entities"] == before["entities"]
+    row = manager.snapshot()[0]
+    request = [{"registry_id": row.registry_id, "old": row.old, "new": row.new}]
+    with pytest.raises(HomeAssistantError):
+        await apply_preview(manager, [{**request[0], "new": "binary_sensor.wrong"}])
+    result = await apply_preview(manager, request)
+    assert result["count"] == 1
+    assert er.async_get(hass).async_get(row.new)
+    assert manager.snapshot() == []
     await hass.async_stop()

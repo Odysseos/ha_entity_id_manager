@@ -46,7 +46,12 @@ def objects(hass):
 
 
 def snapshot(hass, entry):
-    return {"revision": revision(entry), "mappings": mappings(entry), "objects": objects(hass)}
+    return {
+        "revision": revision(entry),
+        "mappings": mappings(entry),
+        "objects": objects(hass),
+        "auto_new": bool(entry.options.get("auto_new", False)),
+    }
 
 
 async def save(hass, manager, expected_revision, changes):
@@ -116,4 +121,85 @@ def register(hass):
         return
     websocket_api.async_register_command(hass, websocket_get)
     websocket_api.async_register_command(hass, websocket_save)
+    websocket_api.async_register_command(hass, websocket_preview)
+    websocket_api.async_register_command(hass, websocket_apply)
+    websocket_api.async_register_command(hass, websocket_automatic)
     hass.data[f"{DOMAIN}_ws"] = True
+
+
+@websocket_api.websocket_command({"type": f"{DOMAIN}/preview"})
+@websocket_api.require_admin
+@websocket_api.async_response
+async def websocket_preview(hass, connection, msg):
+    try:
+        manager = get_manager(hass)
+        connection.send_result(
+            msg["id"],
+            [
+                {
+                    "registry_id": row.registry_id,
+                    "old": row.old,
+                    "new": row.new,
+                    "conflict": row.conflict,
+                }
+                for row in manager.snapshot()
+            ],
+        )
+    except EditError as err:
+        connection.send_error(msg["id"], err.code, str(err))
+
+
+async def apply_preview(manager, rows):
+    from .naming import Rename
+
+    if not rows:
+        raise EditError("nothing_selected", "Select at least one rename")
+    selected = []
+    ids = set()
+    for row in rows:
+        if (
+            not isinstance(row, dict)
+            or set(row) != {"registry_id", "old", "new"}
+            or not all(isinstance(v, str) for v in row.values())
+        ):
+            raise EditError("invalid_changes", "Invalid preview row")
+        if row["registry_id"] in ids:
+            raise EditError("invalid_changes", "Duplicate preview row")
+        ids.add(row["registry_id"])
+        selected.append(Rename(**row))
+    await manager.apply(selected)
+    return {"count": len(selected)}
+
+
+@websocket_api.websocket_command({"type": f"{DOMAIN}/apply", vol.Required("rows"): [dict]})
+@websocket_api.require_admin
+@websocket_api.async_response
+async def websocket_apply(hass, connection, msg):
+    from homeassistant.exceptions import HomeAssistantError
+
+    try:
+        connection.send_result(msg["id"], await apply_preview(get_manager(hass), msg["rows"]))
+    except EditError as err:
+        connection.send_error(msg["id"], err.code, str(err))
+    except HomeAssistantError as err:
+        connection.send_error(msg["id"], "apply_failed", str(err))
+
+
+async def set_automatic(hass, manager, enabled):
+    async with manager.lock:
+        hass.config_entries.async_update_entry(
+            manager.entry, options={**manager.entry.options, "auto_new": enabled}
+        )
+    return {"auto_new": enabled}
+
+
+@websocket_api.websocket_command({"type": f"{DOMAIN}/automatic", vol.Required("enabled"): bool})
+@websocket_api.require_admin
+@websocket_api.async_response
+async def websocket_automatic(hass, connection, msg):
+    try:
+        connection.send_result(
+            msg["id"], await set_automatic(hass, get_manager(hass), msg["enabled"])
+        )
+    except EditError as err:
+        connection.send_error(msg["id"], err.code, str(err))

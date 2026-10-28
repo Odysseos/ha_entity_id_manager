@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.3.9
+
+- Apply parent prefix backgrounds to individual parts, preventing yellow edges around green draft values.
+
 ## 0.3.8
 
 - Highlight draft parent ID parts in green within the shared prefix, including placeholders for pending removals.

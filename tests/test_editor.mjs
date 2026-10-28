@@ -7,7 +7,7 @@ const source = await readFile(
   ),
   "utf8",
 );
-const { DraftStore } = await import(
+const { DraftStore, IDManagerPanel } = await import(
   `data:text/javascript;base64,${Buffer.from(source).toString("base64")}`
 );
 const snapshot = {
@@ -87,3 +87,25 @@ assert.deepEqual(store.parentParts("devices", { area_id: "a" }), [
   { value: "living_room", kind: "prefix" },
 ]);
 console.log("Editor drafts: passed");
+
+for (const kind of ["areas", "devices", "entities"]) {
+  const context = {
+    kind,
+    store: { saved: { [kind]: { z: "saved" } } },
+    objectLabel: (object) => object.name,
+  };
+  const rows = [
+    { id: "z", name: "Zulu", area_name: "Room" },
+    { id: "a", name: "Alpha", area_name: "Room" },
+  ];
+  if (kind !== "areas")
+    rows.unshift({ id: "none", name: "Aardvark", area_name: null });
+  const sorted = rows.sort((a, b) =>
+    IDManagerPanel.prototype.compareObjects.call(context, a, b),
+  );
+  assert.deepEqual(
+    sorted.map((row) => row.id),
+    kind === "areas" ? ["a", "z"] : ["a", "z", "none"],
+  );
+}
+console.log("Name-only sorting: passed");

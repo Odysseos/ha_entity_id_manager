@@ -474,8 +474,6 @@ export class IDManagerPanel extends (globalThis.HTMLElement || class {}) {
       if (unassigned) return unassigned;
     }
     return (
-      Number(Boolean(this.store.saved[this.kind][b.id])) -
-        Number(Boolean(this.store.saved[this.kind][a.id])) ||
       this.objectLabel(a).localeCompare(this.objectLabel(b)) ||
       a.id.localeCompare(b.id)
     );

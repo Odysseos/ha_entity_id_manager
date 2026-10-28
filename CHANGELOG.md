@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.3.10
+
+- Sort objects by display name and context, independently of saved mappings and drafts.
+- Keep devices and entities without an area last.
+- Remove saved-mapping priority from fallback options selectors.
+
 ## 0.3.9
 
 - Apply parent prefix backgrounds to individual parts, preventing yellow edges around green draft values.

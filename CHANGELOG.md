@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.4.4
+
+- Reduce vertical spacing and padding in selected objects and picker rows.
+- Keep the compact selected-object height constant across tabs.
+
 ## 0.4.3
 
 - Fix editor dialog dimensions and control row positions across tabs.

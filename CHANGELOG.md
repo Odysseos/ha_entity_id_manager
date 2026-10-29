@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.4.5
+
+- Further compact object rows and reduce the desktop editor height to 80% of the viewport.
+
 ## 0.4.4
 
 - Reduce vertical spacing and padding in selected objects and picker rows.

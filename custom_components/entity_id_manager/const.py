@@ -1,2 +1,2 @@
 DOMAIN = "entity_id_manager"
-VERSION = "0.4.6"
+VERSION = "0.5.0"

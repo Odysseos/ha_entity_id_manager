@@ -114,6 +114,8 @@ Object.assign(WORDS.en, {
 export class DraftStore {
   constructor(snapshot) {
     this.revision = snapshot.revision;
+    this.versions = {};
+    this.bulkUndo = null;
     this.objects = structuredClone(snapshot.objects);
     this.saved = structuredClone(snapshot.mappings);
     this.drafts = Object.fromEntries(KEYS.map((k) => [k, {}]));
@@ -124,12 +126,13 @@ export class DraftStore {
       : this.saved[key][id] || "";
   }
   set(key, id, value) {
+    this.versions[`${key}:${id}`] = (this.versions[`${key}:${id}`] || 0) + 1;
     const next = value.trim();
     if (next === (this.saved[key][id] || "")) delete this.drafts[key][id];
     else this.drafts[key][id] = next;
   }
   reset(key, id) {
-    delete this.drafts[key][id];
+    this.set(key, id, this.saved[key][id] || "");
   }
   get count() {
     return KEYS.reduce((n, k) => n + Object.keys(this.drafts[k]).length, 0);
@@ -163,6 +166,46 @@ export class DraftStore {
     return this.parentParts(key, object)
       .map((part) => part.value)
       .join("/");
+  }
+  namesakes(key, id) {
+    if (key === "areas") return [];
+    const current = this.objects[key].find((object) => object.id === id);
+    if (!current) return [];
+    const normalize = (name) =>
+      name.trim().normalize("NFC").toLocaleLowerCase();
+    return this.objects[key].filter(
+      (object) =>
+        object.id !== id && normalize(object.name) === normalize(current.name),
+    );
+  }
+  copyToNamesakes(key, id, replace) {
+    const after = this.value(key, id);
+    if (!after || !PART.test(after)) return 0;
+    const parts = [];
+    for (const object of this.namesakes(key, id)) {
+      const before = this.value(key, object.id);
+      if (before === after || (before && !replace)) continue;
+      this.set(key, object.id, after);
+      parts.push({
+        id: object.id,
+        before,
+        version: this.versions[`${key}:${object.id}`],
+      });
+    }
+    this.bulkUndo = parts.length ? { key, parts } : this.bulkUndo;
+    return parts.length;
+  }
+  undoBulk() {
+    if (!this.bulkUndo) return 0;
+    const { key, parts } = this.bulkUndo;
+    let count = 0;
+    for (const part of parts) {
+      if (this.versions[`${key}:${part.id}`] !== part.version) continue;
+      this.set(key, part.id, part.before);
+      count++;
+    }
+    this.bulkUndo = null;
+    return count;
   }
   changes() {
     return structuredClone(this.drafts);
@@ -231,12 +274,12 @@ export class IDManagerPanel extends (globalThis.HTMLElement || class {}) {
       #editor-dialog .picker,#editor-dialog .selected-row{height:100%;min-height:0}#editor-dialog #object{box-sizing:border-box;height:100%;padding:3px 12px;grid-template-rows:20px 20px 16px;align-content:center;row-gap:0}
       #editor-dialog #object.area-row{grid-template-rows:1fr}#editor-dialog #object .object-name,#editor-dialog #object .object-description,#editor-dialog #object .object-current-id{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
       #editor-dialog #object .object-prefix,#editor-dialog #object .object-own{flex-wrap:nowrap;overflow:hidden}#editor-dialog #object .id-chip{white-space:nowrap;flex-shrink:0}#editor-dialog #object .id-chip.prefix{flex-wrap:nowrap}
-      #editor-dialog #part{height:48px;padding:12px}#editor-dialog .tools{margin:0;flex-wrap:nowrap;align-items:center}#editor-dialog .tools button{padding:6px 12px}
+      #editor-dialog #part{height:48px;padding:12px}#editor-dialog .tools{margin:0;flex-wrap:nowrap;align-items:center;overflow-x:auto;min-width:0}#editor-dialog .tools button{white-space:nowrap;flex-shrink:0}#bulk-choice,#bulk-result{font-size:.85em}#bulk-choice button,#bulk-result button{padding:4px 10px}#editor-dialog .tools button{padding:6px 12px}
       .editor-details{min-height:0;overflow:auto;overscroll-behavior:contain;padding:2px 0}.editor-details p{margin:4px 0}.editor-details #conflict-detail{max-height:180px}.editor-footer{display:flex;align-items:center;justify-content:space-between;gap:8px;min-width:0}.editor-footer .count{margin:0}.editor-footer .actions{margin:0;gap:8px}
       @media(max-width:600px),(max-height:700px){#editor-dialog{width:calc(100vw - 16px);height:calc(100dvh - 16px);padding:12px;border-radius:18px}.editor-footer{font-size:.85em}.editor-footer .actions button{padding:10px}.editor-footer .count{max-width:45%}}
       @media(max-height:550px){#editor-dialog[open]{grid-template-rows:28px 32px 40px 16px 80px 16px 40px 30px minmax(0,1fr) 48px;gap:2px}#editor-dialog #object{padding:2px 12px}#editor-dialog #part{height:40px}}
     </style><header><ha-menu-button></ha-menu-button><h1>Entity ID Manager</h1></header><main><h2>${w.title}</h2><p>${w.intro}</p><div class="main-actions"><button id="open" class="primary">${w.open}</button><button id="preview-open" class="primary">${w.preview}</button></div><label class="automatic"><input id="automatic" type="checkbox" disabled> ${w.automatic}</label><p id="status" role="status"></p></main>
-    <dialog id="editor-dialog"><div class="heading"><button id="close" aria-label="${w.close}">×</button><h2>${w.title}</h2></div><div class="tabs" role="tablist">${KEYS.map((k) => `<button role="tab" data-kind="${k}">${w[k]}</button>`).join("")}</div><div class="object-filters" role="group" aria-label="${this.words === WORDS.ru ? "Фильтр списка" : "List filter"}"><span>${this.words === WORDS.ru ? "Фильтр:" : "Filter:"}</span><button id="filter-all"></button><button id="conflict-filter"></button><button id="filter-scope" hidden></button><span id="check-status" role="status"></span></div><label id="object-label">${w.choose}</label><div class="picker"><div class="selected-row"><button id="object" class="object-row" aria-labelledby="object-label" aria-haspopup="listbox" aria-expanded="false" aria-controls="object-list"></button><span id="selected-link"></span></div><div id="object-dropdown" popover="manual" hidden><input id="object-search" type="search" aria-label="${w.search}" placeholder="${w.search}" autocomplete="off"><div id="object-list" role="listbox" aria-labelledby="object-label"></div></div></div><label for="part">${w.part}</label><input id="part" type="text" autocomplete="off" autocapitalize="none" spellcheck="false"><div class="tools"><button id="clear">${w.clear}</button><button id="reset">${w.reset}</button></div><div class="editor-details"><p id="validation" class="error" role="status"></p><div id="conflict-detail" class="error" role="status"></div><button id="conflict-more" hidden></button><button id="copy-id" hidden></button><p id="error" class="error" role="alert"></p></div><div class="editor-footer"><p id="count" class="count"></p><div class="actions"><button id="cancel">${w.cancel}</button><button id="confirm" class="primary">${w.confirm}</button></div></div></dialog><dialog id="preview-dialog"><div class="heading"><button id="preview-close" aria-label="${w.close}">×</button><h2>${w.preview}</h2></div><p>${w.references}</p><div id="preview-rows"></div><p id="preview-error" class="error" role="alert"></p><div class="actions"><button id="preview-cancel">${w.cancel}</button><button id="preview-apply" class="primary" disabled>${w.apply}</button></div></dialog>`;
+    <dialog id="editor-dialog"><div class="heading"><button id="close" aria-label="${w.close}">×</button><h2>${w.title}</h2></div><div class="tabs" role="tablist">${KEYS.map((k) => `<button role="tab" data-kind="${k}">${w[k]}</button>`).join("")}</div><div class="object-filters" role="group" aria-label="${this.words === WORDS.ru ? "Фильтр списка" : "List filter"}"><span>${this.words === WORDS.ru ? "Фильтр:" : "Filter:"}</span><button id="filter-all"></button><button id="conflict-filter"></button><button id="filter-scope" hidden></button><span id="check-status" role="status"></span></div><label id="object-label">${w.choose}</label><div class="picker"><div class="selected-row"><button id="object" class="object-row" aria-labelledby="object-label" aria-haspopup="listbox" aria-expanded="false" aria-controls="object-list"></button><span id="selected-link"></span></div><div id="object-dropdown" popover="manual" hidden><input id="object-search" type="search" aria-label="${w.search}" placeholder="${w.search}" autocomplete="off"><div id="object-list" role="listbox" aria-labelledby="object-label"></div></div></div><label for="part">${w.part}</label><input id="part" type="text" autocomplete="off" autocapitalize="none" spellcheck="false"><div class="tools"><button id="clear">${w.clear}</button><button id="reset">${w.reset}</button><button id="bulk-copy"></button></div><div class="editor-details"><div id="bulk-choice" hidden><p id="bulk-question"></p><button id="bulk-empty"></button><button id="bulk-all"></button><button id="bulk-cancel"></button></div><div id="bulk-result" hidden><span id="bulk-message" role="status"></span><button id="bulk-undo"></button></div><p id="validation" class="error" role="status"></p><div id="conflict-detail" class="error" role="status"></div><button id="conflict-more" hidden></button><button id="copy-id" hidden></button><p id="error" class="error" role="alert"></p></div><div class="editor-footer"><p id="count" class="count"></p><div class="actions"><button id="cancel">${w.cancel}</button><button id="confirm" class="primary">${w.confirm}</button></div></div></dialog><dialog id="preview-dialog"><div class="heading"><button id="preview-close" aria-label="${w.close}">×</button><h2>${w.preview}</h2></div><p>${w.references}</p><div id="preview-rows"></div><p id="preview-error" class="error" role="alert"></p><div class="actions"><button id="preview-cancel">${w.cancel}</button><button id="preview-apply" class="primary" disabled>${w.apply}</button></div></dialog>`;
     const q = (s) => this.shadowRoot.querySelector(s);
     const menu = q("ha-menu-button");
     if (menu) menu.hass = this._hass;
@@ -303,6 +346,35 @@ export class IDManagerPanel extends (globalThis.HTMLElement || class {}) {
     };
     for (const id of ["close", "cancel"])
       q(`#${id}`).onclick = () => this.cancel();
+    q("#bulk-copy").onclick = () => {
+      const key = this.kind,
+        id = this.selected[key],
+        value = this.store.value(key, id);
+      const different = this.store
+        .namesakes(key, id)
+        .filter(
+          (object) =>
+            this.store.value(key, object.id) &&
+            this.store.value(key, object.id) !== value,
+        );
+      if (different.length) {
+        this.bulkPending = { key, id, value };
+        this.refresh();
+      } else this.applyBulk(key, id, false);
+    };
+    q("#bulk-empty").onclick = () =>
+      this.applyBulk(this.bulkPending.key, this.bulkPending.id, false);
+    q("#bulk-all").onclick = () =>
+      this.applyBulk(this.bulkPending.key, this.bulkPending.id, true);
+    q("#bulk-cancel").onclick = () => {
+      this.bulkPending = null;
+      this.refresh();
+    };
+    q("#bulk-undo").onclick = () => {
+      const count = this.store.undoBulk();
+      this.bulkMessage = `${this.words === WORDS.ru ? "Отменено изменений" : "Changes undone"}: ${count}`;
+      this.fill();
+    };
     q("#confirm").onclick = () => this.save();
     q("#conflict-more").onclick = () => {
       this.expandedConflict =
@@ -500,6 +572,8 @@ export class IDManagerPanel extends (globalThis.HTMLElement || class {}) {
       });
       if (!this.isConnected) return;
       this.store = new DraftStore(snapshot);
+      this.bulkPending = null;
+      this.bulkMessage = "";
       this.conflicts = {};
       this.conflictOnly = false;
       this.conflictScope = null;
@@ -877,11 +951,51 @@ export class IDManagerPanel extends (globalThis.HTMLElement || class {}) {
     q("#part").disabled = this.busy || !id;
     q("#object").disabled = this.busy || !id;
     q("#clear").disabled = this.busy || !id || !this.store.value(this.kind, id);
+    const namesakes = this.store.namesakes(this.kind, id);
+    const value = this.store.value(this.kind, id);
+    q("#bulk-copy").textContent =
+      `${this.words === WORDS.ru ? "Для одноимённых" : "Apply to same name"} (${namesakes.length})`;
+    q("#bulk-copy").hidden = this.kind === "areas";
+    q("#bulk-copy").disabled =
+      this.busy || !namesakes.length || !value || !PART.test(value);
+    if (
+      this.bulkPending &&
+      (this.bulkPending.key !== this.kind ||
+        this.bulkPending.id !== id ||
+        this.bulkPending.value !== value)
+    )
+      this.bulkPending = null;
+    const ruBulk = this.words === WORDS.ru;
+    q("#bulk-choice").hidden = !this.bulkPending;
+    q("#bulk-question").textContent = ruBulk
+      ? "У части одноимённых объектов уже задана другая часть ID. Какие значения заменить?"
+      : "Some matching objects already have different ID parts. Which values should be replaced?";
+    q("#bulk-empty").textContent = ruBulk ? "Только незаданные" : "Unset only";
+    q("#bulk-all").textContent = ruBulk ? "Заменить у всех" : "Replace all";
+    q("#bulk-cancel").textContent = w.cancel;
+    q("#bulk-result").hidden = !this.bulkMessage;
+    q("#bulk-message").textContent = this.bulkMessage || "";
+    q("#bulk-undo").textContent = ruBulk ? "Отменить" : "Undo";
+    q("#bulk-undo").hidden = !this.store.bulkUndo;
+    for (const selector of [
+      "#bulk-empty",
+      "#bulk-all",
+      "#bulk-cancel",
+      "#bulk-undo",
+    ])
+      q(selector).disabled = this.busy;
     q("#reset").disabled =
       this.busy || !id || !Object.hasOwn(this.store.drafts[this.kind], id);
     for (const selector of ["#cancel", "#close", "[data-kind]"])
       for (const node of this.shadowRoot.querySelectorAll(selector))
         node.disabled = this.busy;
+  }
+  applyBulk(key, id, replace) {
+    if (!this.store || this.busy) return;
+    const count = this.store.copyToNamesakes(key, id, replace);
+    this.bulkPending = null;
+    this.bulkMessage = `${this.words === WORDS.ru ? "Изменено одноимённых объектов" : "Matching objects changed"}: ${count}`;
+    this.fill();
   }
   conflictJump(object) {
     if (this.kind === "entities") return null;

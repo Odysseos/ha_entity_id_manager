@@ -143,3 +143,61 @@ assert.deepEqual(
   ["Батарея", "Температура", "Батарея", "Температура"],
 );
 console.log("Hierarchical sorting: passed");
+
+const bulk = new DraftStore({
+  revision: "bulk",
+  mappings: { areas: {}, devices: { b: "other" }, entities: {} },
+  objects: {
+    areas: [],
+    devices: [
+      { id: "a", name: "Сенсор" },
+      { id: "b", name: "Сенсор" },
+      { id: "c", name: "сенсор" },
+      { id: "d", name: "Другой" },
+    ],
+    entities: [],
+  },
+});
+bulk.set("devices", "a", "sensor");
+assert.equal(bulk.copyToNamesakes("devices", "a", false), 1);
+assert.equal(bulk.value("devices", "b"), "other");
+assert.equal(bulk.value("devices", "c"), "sensor");
+assert.equal(bulk.undoBulk(), 1);
+assert.equal(bulk.value("devices", "c"), "");
+assert.equal(bulk.copyToNamesakes("devices", "a", true), 2);
+bulk.set("devices", "c", "manual");
+assert.equal(bulk.undoBulk(), 1);
+assert.equal(bulk.value("devices", "b"), "other");
+assert.equal(bulk.value("devices", "c"), "manual");
+assert.equal(bulk.value("devices", "a"), "sensor");
+assert.equal(bulk.value("devices", "d"), "");
+console.log("Namesake bulk drafts and selective undo: passed");
+
+const humidity = new DraftStore({
+  revision: "h",
+  mappings: { areas: {}, devices: {}, entities: {} },
+  objects: {
+    areas: [],
+    devices: [],
+    entities: [
+      {
+        id: "h1",
+        name: "Влажность",
+        area_name: "Кухня",
+        device_name: "Датчик",
+      },
+      {
+        id: "h2",
+        name: "Влажность",
+        area_name: "Ванная",
+        device_name: "Мультисенсор",
+      },
+      { id: "t", name: "Температура" },
+    ],
+  },
+});
+humidity.set("entities", "h1", "humidity");
+assert.equal(humidity.copyToNamesakes("entities", "h1", false), 1);
+assert.equal(humidity.value("entities", "h2"), "humidity");
+assert.equal(humidity.value("entities", "t"), "");
+console.log("Namesake entities ignore parent paths: passed");

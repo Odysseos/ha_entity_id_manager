@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.5.0
+
+- Copy ID parts to devices or entities with the same own name across areas and devices.
+- Choose between filling unset parts and replacing all matching parts when different values exist.
+- Stage bulk edits as drafts, recalculate conflicts and allow undo without overwriting later manual edits.
+
 ## 0.4.6
 
 - Give the editor and preview actions matching filled buttons, arranged side by side.

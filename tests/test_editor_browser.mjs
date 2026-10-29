@@ -448,6 +448,46 @@ try {
     3,
   );
   await q("#cancel").click();
+  await page.goto("http://editor.test/");
+  await page.evaluate(() => {
+    window.test.snapshot.objects.devices.push(
+      { id: "d2", name: "Нептун", area_name: "Кухня" },
+      { id: "d3", name: "Нептун", area_name: "Спальня" },
+    );
+    window.test.snapshot.mappings.devices.d3 = "other";
+  });
+  await q("#open").click();
+  await q('[data-kind="devices"]').click();
+  await choose("d");
+  await q("#part").fill("guard");
+  assert.equal(await q("#bulk-copy").textContent(), "Для одноимённых (2)");
+  await q("#bulk-copy").click();
+  assert.equal(await q("#bulk-choice").isVisible(), true);
+  await q("#bulk-empty").click();
+  await choose("d2");
+  assert.equal(await q("#part").inputValue(), "guard");
+  await choose("d3");
+  assert.equal(await q("#part").inputValue(), "other");
+  await q("#bulk-undo").click();
+  await choose("d2");
+  assert.equal(await q("#part").inputValue(), "");
+  await choose("d");
+  await q("#bulk-copy").click();
+  await q("#bulk-all").click();
+  await choose("d3");
+  assert.equal(await q("#part").inputValue(), "guard");
+  await choose("d2");
+  await q("#part").fill("manual");
+  await q("#bulk-undo").click();
+  assert.equal(await q("#part").inputValue(), "manual");
+  await choose("d3");
+  assert.equal(await q("#part").inputValue(), "other");
+  await q("#cancel").click();
+  await q("#open").click();
+  await q('[data-kind="devices"]').click();
+  await choose("d2");
+  assert.equal(await q("#part").inputValue(), "");
+  await q("#cancel").click();
   console.log(
     "Browser editor: selection, draft labels, reset, clear, cancel, batch save, validation, stale guard and viewport popover geometry, preview, automatic mode and direct settings entry passed",
   );

@@ -193,6 +193,13 @@ try {
     "sensor.test",
   );
   assert.equal(await q("#copy-id").isVisible(), true);
+  assert.ok(
+    await q(".selected-row").evaluate((row) => {
+      const outer = row.getBoundingClientRect(),
+        link = row.querySelector(".object-link").getBoundingClientRect();
+      return link.left >= outer.left && link.right <= outer.right + 1;
+    }),
+  );
   assert.equal(await q("#object .object-icon").count(), 1);
   assert.equal(
     await q("#object .object-description").textContent(),
@@ -363,6 +370,18 @@ try {
   await q("#selected-link .conflict-jump").click();
   assert.equal(await q(".object-option").count(), 1);
   assert.equal(await q(".object-option").getAttribute("data-object-id"), "e");
+  assert.match(await q("#filter-scope").textContent(), /Ванная\/Нептун.*\(1\)/);
+  assert.equal(await q("#filter-scope").getAttribute("aria-pressed"), "true");
+  assert.equal(await q("#conflict-filter").textContent(), "Все конфликты (2)");
+  await q("#conflict-filter").click();
+  assert.equal(await q(".object-option").count(), 2);
+  assert.equal(
+    await q("#conflict-filter").getAttribute("aria-pressed"),
+    "true",
+  );
+  await q("#filter-scope").click();
+  assert.equal(await q(".object-option").count(), 1);
+
   await page.keyboard.press("Escape");
   await q('[data-kind="areas"]').click();
   await choose("a");

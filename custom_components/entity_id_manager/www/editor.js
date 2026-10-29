@@ -218,12 +218,13 @@ export class IDManagerPanel extends (globalThis.HTMLElement || class {}) {
       [hidden]{display:none!important}.picker{position:relative}#object{border-radius:4px 4px 0 0;border-bottom:1px solid var(--secondary-text-color,#777);background:var(--secondary-background-color,#f5f5f5);padding:16px 12px;width:100%;text-align:left}#object::after{content:"⌄";margin-left:auto;color:var(--secondary-text-color,#666)}
       .object-row{display:grid;grid-template-columns:24px minmax(0,1fr) minmax(0,1fr) auto;align-items:center;column-gap:10px;row-gap:4px;color:var(--primary-text-color,#222);font-weight:normal}.object-icon{grid-column:1;grid-row:1 / 3;--mdc-icon-size:24px;color:var(--secondary-text-color,#666)}.object-text{display:contents}.object-name{grid-column:2;grid-row:1}.object-description{grid-column:2;grid-row:2}.object-prefix{grid-column:3;grid-row:1}.object-own{grid-column:3;grid-row:2}.object-prefix,.object-own{display:flex;flex-wrap:wrap;gap:6px;min-width:0}.object-row::after{grid-column:4;grid-row:1 / 3}.object-name{display:block;overflow-wrap:anywhere}.object-description{display:block;font-size:.8em;line-height:1.4;color:var(--secondary-text-color,#666);margin-top:0}.id-chip{font-family:monospace;font-size:.92em;border-radius:4px;padding:3px 7px;overflow-wrap:anywhere;background:color-mix(in srgb,#2196f3 18%,var(--card-background-color,#fff));color:var(--primary-text-color,#222)}.id-chip.prefix{background:transparent;padding:0;display:inline-flex;align-items:baseline;flex-wrap:wrap}.parent-part{padding:3px 7px;border-radius:4px}.parent-part.prefix{background:color-mix(in srgb,#ffc107 22%,var(--card-background-color,#fff))}.parent-part.added{background:color-mix(in srgb,var(--success-color,#0f9d58) 24%,var(--card-background-color,white))}.id-chip.removed{background:color-mix(in srgb,var(--error-color,#db4437) 22%,var(--card-background-color,white));text-decoration:line-through;text-decoration-thickness:1.5px}.id-chip.added{background:color-mix(in srgb,var(--success-color,#0f9d58) 24%,var(--card-background-color,white))}
       .area-row{grid-template-columns:24px auto minmax(0,1fr) auto}.area-row .object-icon,.area-row::after{grid-row:1}.area-row .object-own{grid-row:1}.area-row .object-prefix{display:none}
+      .object-filters{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:16px;font-size:.85em}.object-filters button{padding:6px 10px;max-width:100%;overflow-wrap:anywhere}.object-filters button[aria-pressed=true]{background:var(--secondary-background-color,#eee);box-shadow:inset 0 0 0 1px var(--primary-color,#03a9f4)}#check-status{color:var(--secondary-text-color,#666)}
       .object-current-id{grid-column:2 / 4;grid-row:3;font-family:monospace;font-size:.75em;color:var(--secondary-text-color,#666);overflow-wrap:anywhere;user-select:all}.object-conflict{color:var(--error-color,#db4437);--mdc-icon-size:20px}#conflict-filter[aria-pressed=true]{background:var(--secondary-background-color,#eee)}#conflict-detail{font-size:.85em;overflow-wrap:anywhere;white-space:pre-wrap;max-height:180px;overflow:auto}.conflict-jump{display:flex;align-items:center;gap:4px;color:var(--error-color,#db4437);padding:8px;flex:0 0 auto}#conflict-more{padding:4px 0;font-size:.85em}#copy-id{font-size:.85em;padding:4px 0}
       #object-dropdown{display:flex;flex-direction:column;position:fixed;inset:auto;margin:0;box-sizing:border-box;overflow:hidden;z-index:2;background:var(--card-background-color,white);border:1px solid var(--divider-color,#ccc);border-radius:0 0 8px 8px;box-shadow:0 6px 18px #0003}#object-search{display:block;flex:0 0 auto;border-radius:0;margin:0;line-height:1.5;min-height:56px}#object-search:focus-visible{outline-offset:-2px}#object-list{flex:1 1 auto;min-height:0;max-height:none;overflow:auto;overscroll-behavior:contain;padding-top:6px}#object-list .object-option{box-sizing:border-box;min-height:48px;line-height:1.5;border-radius:0;width:100%;text-align:left;padding:14px 12px}#object-list .object-option:hover,#object-list .object-option:focus-visible,#object-list .object-option[aria-selected=true]{background:var(--secondary-background-color,#eee)}
       .automatic{display:flex;align-items:center;gap:12px}.automatic input,.preview-row input{width:auto;min-height:0;flex:0 0 auto}.preview-row{display:flex;align-items:flex-start;gap:12px;padding:12px 0;border-bottom:1px solid var(--divider-color,#ddd)}.preview-ids{overflow-wrap:anywhere;line-height:1.6}.preview-ids code{display:block}.preview-row .error{font-size:14px}
-      #selected-link{display:flex;flex:0 0 auto;align-items:center}.selected-row,.object-choice{display:flex;align-items:center;min-width:0}.selected-row{background:var(--secondary-background-color,#f5f5f5)}.selected-row #object{flex:1;min-width:0;width:auto}.object-link{display:flex;align-items:center;justify-content:center;flex:0 0 40px;min-height:44px;text-decoration:none;color:var(--secondary-text-color,#666);--mdc-icon-size:20px}.object-link:focus-visible{outline:2px solid var(--primary-color);outline-offset:-2px}.object-link:hover{color:var(--primary-color)}#object-list .object-option{flex:1;min-width:0;width:auto}.object-choice:hover{background:var(--secondary-background-color,#eee)}
+      #selected-link{display:flex;flex:0 0 auto;min-width:40px;align-items:center}.selected-row,.object-choice{display:flex;align-items:center;min-width:0}.selected-row{box-sizing:border-box;width:100%;background:var(--secondary-background-color,#f5f5f5)}.selected-row #object{flex:1;min-width:0;width:auto}.object-link{display:flex;align-items:center;justify-content:center;flex:0 0 40px;width:40px;box-sizing:border-box;min-height:44px;text-decoration:none;color:var(--secondary-text-color,#666);--mdc-icon-size:20px}.object-link:focus-visible{outline:2px solid var(--primary-color);outline-offset:-2px}.object-link:hover{color:var(--primary-color)}#object-list .object-option{flex:1;min-width:0;width:auto}.object-choice:hover{background:var(--secondary-background-color,#eee)}
     </style><header><ha-menu-button></ha-menu-button><h1>Entity ID Manager</h1></header><main><h2>${w.title}</h2><p>${w.intro}</p><button id="open" class="primary">${w.open}</button><button id="preview-open">${w.preview}</button><label class="automatic"><input id="automatic" type="checkbox" disabled> ${w.automatic}</label><p id="status" role="status"></p></main>
-    <dialog id="editor-dialog"><div class="heading"><button id="close" aria-label="${w.close}">×</button><h2>${w.title}</h2></div><div class="tabs" role="tablist">${KEYS.map((k) => `<button role="tab" data-kind="${k}">${w[k]}</button>`).join("")}</div><label id="object-label">${w.choose}</label><div class="picker"><div class="selected-row"><button id="object" class="object-row" aria-labelledby="object-label" aria-haspopup="listbox" aria-expanded="false" aria-controls="object-list"></button><span id="selected-link"></span></div><div id="object-dropdown" popover="manual" hidden><input id="object-search" type="search" aria-label="${w.search}" placeholder="${w.search}" autocomplete="off"><div id="object-list" role="listbox" aria-labelledby="object-label"></div></div></div><label for="part">${w.part}</label><input id="part" type="text" autocomplete="off" autocapitalize="none" spellcheck="false"><div class="tools"><button id="clear">${w.clear}</button><button id="reset">${w.reset}</button></div><p id="validation" class="error" role="status"></p><div id="conflict-detail" class="error" role="status"></div><button id="conflict-more" hidden></button><button id="copy-id" hidden></button><button id="conflict-filter" aria-pressed="false"></button><p id="count" class="count"></p><p id="error" class="error" role="alert"></p><div class="actions"><button id="cancel">${w.cancel}</button><button id="confirm" class="primary">${w.confirm}</button></div></dialog><dialog id="preview-dialog"><div class="heading"><button id="preview-close" aria-label="${w.close}">×</button><h2>${w.preview}</h2></div><p>${w.references}</p><div id="preview-rows"></div><p id="preview-error" class="error" role="alert"></p><div class="actions"><button id="preview-cancel">${w.cancel}</button><button id="preview-apply" class="primary" disabled>${w.apply}</button></div></dialog>`;
+    <dialog id="editor-dialog"><div class="heading"><button id="close" aria-label="${w.close}">×</button><h2>${w.title}</h2></div><div class="tabs" role="tablist">${KEYS.map((k) => `<button role="tab" data-kind="${k}">${w[k]}</button>`).join("")}</div><div class="object-filters" role="group" aria-label="${this.words === WORDS.ru ? "Фильтр списка" : "List filter"}"><span>${this.words === WORDS.ru ? "Фильтр:" : "Filter:"}</span><button id="filter-all"></button><button id="conflict-filter"></button><button id="filter-scope" hidden></button><span id="check-status" role="status"></span></div><label id="object-label">${w.choose}</label><div class="picker"><div class="selected-row"><button id="object" class="object-row" aria-labelledby="object-label" aria-haspopup="listbox" aria-expanded="false" aria-controls="object-list"></button><span id="selected-link"></span></div><div id="object-dropdown" popover="manual" hidden><input id="object-search" type="search" aria-label="${w.search}" placeholder="${w.search}" autocomplete="off"><div id="object-list" role="listbox" aria-labelledby="object-label"></div></div></div><label for="part">${w.part}</label><input id="part" type="text" autocomplete="off" autocapitalize="none" spellcheck="false"><div class="tools"><button id="clear">${w.clear}</button><button id="reset">${w.reset}</button></div><p id="validation" class="error" role="status"></p><div id="conflict-detail" class="error" role="status"></div><button id="conflict-more" hidden></button><button id="copy-id" hidden></button><p id="count" class="count"></p><p id="error" class="error" role="alert"></p><div class="actions"><button id="cancel">${w.cancel}</button><button id="confirm" class="primary">${w.confirm}</button></div></dialog><dialog id="preview-dialog"><div class="heading"><button id="preview-close" aria-label="${w.close}">×</button><h2>${w.preview}</h2></div><p>${w.references}</p><div id="preview-rows"></div><p id="preview-error" class="error" role="alert"></p><div class="actions"><button id="preview-cancel">${w.cancel}</button><button id="preview-apply" class="primary" disabled>${w.apply}</button></div></dialog>`;
     const q = (s) => this.shadowRoot.querySelector(s);
     const menu = q("ha-menu-button");
     if (menu) menu.hass = this._hass;
@@ -298,13 +299,15 @@ export class IDManagerPanel extends (globalThis.HTMLElement || class {}) {
           : this.selected.entities;
       this.refresh();
     };
-    q("#conflict-filter").onclick = (event) => {
-      event.stopPropagation();
-      this.conflictOnly = !this.conflictOnly;
-      this.conflictScope = null;
-      this.refresh();
-      this.togglePicker(true);
-    };
+    for (const mode of ["filter-all", "conflict-filter", "filter-scope"]) {
+      q(`#${mode}`).onclick = (event) => {
+        event.stopPropagation();
+        this.conflictOnly = mode !== "filter-all";
+        this.conflictScope = mode === "filter-scope" ? this.scopeChoice : null;
+        this.refresh();
+        this.togglePicker(true);
+      };
+    }
     q("#copy-id").onclick = async () => {
       const object = this.store?.objects.entities.find(
         (o) => o.id === this.selected.entities,
@@ -336,6 +339,7 @@ export class IDManagerPanel extends (globalThis.HTMLElement || class {}) {
     for (const button of this.shadowRoot.querySelectorAll("[data-kind]"))
       button.onclick = () => {
         this.kind = button.dataset.kind;
+        if (this.kind !== "entities") this.conflictScope = null;
         this.selectKind();
       };
   }
@@ -487,6 +491,7 @@ export class IDManagerPanel extends (globalThis.HTMLElement || class {}) {
       this.conflicts = {};
       this.conflictOnly = false;
       this.conflictScope = null;
+      this.scopeChoice = null;
       this.expandedConflict = null;
       this.checkKey = null;
       this.checkError = "";
@@ -819,15 +824,37 @@ export class IDManagerPanel extends (globalThis.HTMLElement || class {}) {
           : `More ${lines.length - 3}`;
     q("#conflict-more").setAttribute("aria-expanded", String(expanded));
     const count = Object.keys(this.conflicts || {}).length;
+    const ru = this.words === WORDS.ru;
+    q("#filter-all").textContent = ru ? "Все объекты" : "All objects";
+    q("#filter-all").setAttribute("aria-pressed", String(!this.conflictOnly));
+    q("#filter-all").disabled = this.busy;
     q("#conflict-filter").textContent =
-      this.checkError ||
-      (this.checking ? w.conflictCheck : `${w.conflicts}: ${count}`);
+      `${ru ? "Все конфликты" : "All conflicts"} (${count})`;
     q("#conflict-filter").setAttribute(
       "aria-pressed",
-      String(Boolean(this.conflictOnly)),
+      String(Boolean(this.conflictOnly && !this.conflictScope)),
     );
     q("#conflict-filter").disabled =
-      this.busy || Boolean(this.checkError) || (!count && !this.conflictOnly);
+      this.busy || this.checking || Boolean(this.checkError) || !count;
+    q("#check-status").textContent =
+      this.checkError || (this.checking ? w.conflictCheck : "");
+    q("#filter-scope").hidden = !this.scopeChoice || this.kind !== "entities";
+    if (this.scopeChoice) {
+      const scope = this.scopeChoice;
+      const scopedCount = this.store.objects.entities.filter(
+        (entity) =>
+          entity[scope.field] === scope.id &&
+          this.conflicts?.[entity.id]?.length,
+      ).length;
+      q("#filter-scope").textContent = `${scope.label} (${scopedCount})`;
+      q("#filter-scope").title = scope.label;
+      q("#filter-scope").setAttribute(
+        "aria-pressed",
+        String(Boolean(this.conflictOnly && this.conflictScope)),
+      );
+      q("#filter-scope").disabled =
+        this.busy || this.checking || Boolean(this.checkError) || !scopedCount;
+    }
     q("#copy-id").hidden = this.kind !== "entities" || !current?.entity_id;
     q("#copy-id").textContent = w.copyId;
     q("#count").textContent = `${w.changed}: ${this.store.count}`;
@@ -865,7 +892,12 @@ export class IDManagerPanel extends (globalThis.HTMLElement || class {}) {
     button.disabled = this.busy;
     button.onclick = (event) => {
       event.stopPropagation();
-      this.conflictScope = { field, id: object.id };
+      this.conflictScope = {
+        field,
+        id: object.id,
+        label: `${this.words[this.kind]}: ${this.objectLabel(object)}`,
+      };
+      this.scopeChoice = this.conflictScope;
       this.conflictOnly = true;
       this.kind = "entities";
       this.selected.entities = ids[0];

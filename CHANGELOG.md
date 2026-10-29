@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.4.2
+
+- Place explicit list filters above the object picker with separate all-conflict and parent-conflict counts.
+- Switch directly between all objects, all conflicts and parent-scoped conflicts.
+- Keep details links inside the selected row bounds.
+
 ## 0.4.1
 
 - Replace parent conflict details with a count and navigation to affected child entities.

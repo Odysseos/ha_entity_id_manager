@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.4.6
+
+- Give the editor and preview actions matching filled buttons, arranged side by side.
+
 ## 0.4.5
 
 - Further compact object rows and reduce the desktop editor height to 80% of the viewport.

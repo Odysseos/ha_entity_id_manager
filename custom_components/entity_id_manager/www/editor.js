@@ -92,8 +92,24 @@ Object.assign(WORDS.en, {
 Object.assign(WORDS.ru, { noArea: "Без зоны", noDevice: "Без устройства" });
 Object.assign(WORDS.en, { noArea: "No area", noDevice: "No device" });
 
-Object.assign(WORDS.ru, { openCard: "Открыть карточку" });
-Object.assign(WORDS.en, { openCard: "Open details" });
+Object.assign(WORDS.ru, {
+  conflicts: "Конфликтующих сущностей",
+  conflictCheck: "Проверка конфликтов…",
+  checkFailed: "Не удалось проверить конфликты",
+  conflictWith: "Совпадает с",
+  occupiedBy: "ID занят",
+  copyId: "Скопировать текущий ID",
+  openCard: "Открыть карточку",
+});
+Object.assign(WORDS.en, {
+  conflicts: "Conflicting entities",
+  conflictCheck: "Checking conflicts…",
+  checkFailed: "Could not check conflicts",
+  conflictWith: "Conflicts with",
+  occupiedBy: "ID occupied",
+  copyId: "Copy current ID",
+  openCard: "Open details",
+});
 
 export class DraftStore {
   constructor(snapshot) {
@@ -202,11 +218,12 @@ export class IDManagerPanel extends (globalThis.HTMLElement || class {}) {
       [hidden]{display:none!important}.picker{position:relative}#object{border-radius:4px 4px 0 0;border-bottom:1px solid var(--secondary-text-color,#777);background:var(--secondary-background-color,#f5f5f5);padding:16px 12px;width:100%;text-align:left}#object::after{content:"⌄";margin-left:auto;color:var(--secondary-text-color,#666)}
       .object-row{display:grid;grid-template-columns:24px minmax(0,1fr) minmax(0,1fr) auto;align-items:center;column-gap:10px;row-gap:4px;color:var(--primary-text-color,#222);font-weight:normal}.object-icon{grid-column:1;grid-row:1 / 3;--mdc-icon-size:24px;color:var(--secondary-text-color,#666)}.object-text{display:contents}.object-name{grid-column:2;grid-row:1}.object-description{grid-column:2;grid-row:2}.object-prefix{grid-column:3;grid-row:1}.object-own{grid-column:3;grid-row:2}.object-prefix,.object-own{display:flex;flex-wrap:wrap;gap:6px;min-width:0}.object-row::after{grid-column:4;grid-row:1 / 3}.object-name{display:block;overflow-wrap:anywhere}.object-description{display:block;font-size:.8em;line-height:1.4;color:var(--secondary-text-color,#666);margin-top:0}.id-chip{font-family:monospace;font-size:.92em;border-radius:4px;padding:3px 7px;overflow-wrap:anywhere;background:color-mix(in srgb,#2196f3 18%,var(--card-background-color,#fff));color:var(--primary-text-color,#222)}.id-chip.prefix{background:transparent;padding:0;display:inline-flex;align-items:baseline;flex-wrap:wrap}.parent-part{padding:3px 7px;border-radius:4px}.parent-part.prefix{background:color-mix(in srgb,#ffc107 22%,var(--card-background-color,#fff))}.parent-part.added{background:color-mix(in srgb,var(--success-color,#0f9d58) 24%,var(--card-background-color,white))}.id-chip.removed{background:color-mix(in srgb,var(--error-color,#db4437) 22%,var(--card-background-color,white));text-decoration:line-through;text-decoration-thickness:1.5px}.id-chip.added{background:color-mix(in srgb,var(--success-color,#0f9d58) 24%,var(--card-background-color,white))}
       .area-row{grid-template-columns:24px auto minmax(0,1fr) auto}.area-row .object-icon,.area-row::after{grid-row:1}.area-row .object-own{grid-row:1}.area-row .object-prefix{display:none}
+      .object-current-id{grid-column:2 / 4;grid-row:3;font-family:monospace;font-size:.75em;color:var(--secondary-text-color,#666);overflow-wrap:anywhere;user-select:all}.object-conflict{color:var(--error-color,#db4437);--mdc-icon-size:20px}#conflict-filter[aria-pressed=true]{background:var(--secondary-background-color,#eee)}#conflict-detail{font-size:.85em;overflow-wrap:anywhere}#copy-id{font-size:.85em;padding:4px 0}
       #object-dropdown{display:flex;flex-direction:column;position:fixed;inset:auto;margin:0;box-sizing:border-box;overflow:hidden;z-index:2;background:var(--card-background-color,white);border:1px solid var(--divider-color,#ccc);border-radius:0 0 8px 8px;box-shadow:0 6px 18px #0003}#object-search{display:block;flex:0 0 auto;border-radius:0;margin:0;line-height:1.5;min-height:56px}#object-search:focus-visible{outline-offset:-2px}#object-list{flex:1 1 auto;min-height:0;max-height:none;overflow:auto;overscroll-behavior:contain;padding-top:6px}#object-list button{box-sizing:border-box;min-height:48px;line-height:1.5;border-radius:0;width:100%;text-align:left;padding:14px 12px}#object-list button:hover,#object-list button:focus-visible,#object-list button[aria-selected=true]{background:var(--secondary-background-color,#eee)}
       .automatic{display:flex;align-items:center;gap:12px}.automatic input,.preview-row input{width:auto;min-height:0;flex:0 0 auto}.preview-row{display:flex;align-items:flex-start;gap:12px;padding:12px 0;border-bottom:1px solid var(--divider-color,#ddd)}.preview-ids{overflow-wrap:anywhere;line-height:1.6}.preview-ids code{display:block}.preview-row .error{font-size:14px}
       #selected-link{display:flex;flex:0 0 40px}.selected-row,.object-choice{display:flex;align-items:center;min-width:0}.selected-row{background:var(--secondary-background-color,#f5f5f5)}.selected-row #object{flex:1;min-width:0;width:auto}.object-link{display:flex;align-items:center;justify-content:center;flex:0 0 40px;min-height:44px;text-decoration:none;color:var(--secondary-text-color,#666);--mdc-icon-size:20px}.object-link:focus-visible{outline:2px solid var(--primary-color);outline-offset:-2px}.object-link:hover{color:var(--primary-color)}#object-list .object-option{flex:1;min-width:0;width:auto}.object-choice:hover{background:var(--secondary-background-color,#eee)}
     </style><header><ha-menu-button></ha-menu-button><h1>Entity ID Manager</h1></header><main><h2>${w.title}</h2><p>${w.intro}</p><button id="open" class="primary">${w.open}</button><button id="preview-open">${w.preview}</button><label class="automatic"><input id="automatic" type="checkbox" disabled> ${w.automatic}</label><p id="status" role="status"></p></main>
-    <dialog id="editor-dialog"><div class="heading"><button id="close" aria-label="${w.close}">×</button><h2>${w.title}</h2></div><div class="tabs" role="tablist">${KEYS.map((k) => `<button role="tab" data-kind="${k}">${w[k]}</button>`).join("")}</div><label id="object-label">${w.choose}</label><div class="picker"><div class="selected-row"><button id="object" class="object-row" aria-labelledby="object-label" aria-haspopup="listbox" aria-expanded="false" aria-controls="object-list"></button><span id="selected-link"></span></div><div id="object-dropdown" popover="manual" hidden><input id="object-search" type="search" aria-label="${w.search}" placeholder="${w.search}" autocomplete="off"><div id="object-list" role="listbox" aria-labelledby="object-label"></div></div></div><label for="part">${w.part}</label><input id="part" type="text" autocomplete="off" autocapitalize="none" spellcheck="false"><div class="tools"><button id="clear">${w.clear}</button><button id="reset">${w.reset}</button></div><p id="validation" class="error" role="status"></p><p id="count" class="count"></p><p id="error" class="error" role="alert"></p><div class="actions"><button id="cancel">${w.cancel}</button><button id="confirm" class="primary">${w.confirm}</button></div></dialog><dialog id="preview-dialog"><div class="heading"><button id="preview-close" aria-label="${w.close}">×</button><h2>${w.preview}</h2></div><p>${w.references}</p><div id="preview-rows"></div><p id="preview-error" class="error" role="alert"></p><div class="actions"><button id="preview-cancel">${w.cancel}</button><button id="preview-apply" class="primary" disabled>${w.apply}</button></div></dialog>`;
+    <dialog id="editor-dialog"><div class="heading"><button id="close" aria-label="${w.close}">×</button><h2>${w.title}</h2></div><div class="tabs" role="tablist">${KEYS.map((k) => `<button role="tab" data-kind="${k}">${w[k]}</button>`).join("")}</div><label id="object-label">${w.choose}</label><div class="picker"><div class="selected-row"><button id="object" class="object-row" aria-labelledby="object-label" aria-haspopup="listbox" aria-expanded="false" aria-controls="object-list"></button><span id="selected-link"></span></div><div id="object-dropdown" popover="manual" hidden><input id="object-search" type="search" aria-label="${w.search}" placeholder="${w.search}" autocomplete="off"><div id="object-list" role="listbox" aria-labelledby="object-label"></div></div></div><label for="part">${w.part}</label><input id="part" type="text" autocomplete="off" autocapitalize="none" spellcheck="false"><div class="tools"><button id="clear">${w.clear}</button><button id="reset">${w.reset}</button></div><p id="validation" class="error" role="status"></p><p id="conflict-detail" class="error" role="status"></p><button id="copy-id" hidden></button><button id="conflict-filter" aria-pressed="false"></button><p id="count" class="count"></p><p id="error" class="error" role="alert"></p><div class="actions"><button id="cancel">${w.cancel}</button><button id="confirm" class="primary">${w.confirm}</button></div></dialog><dialog id="preview-dialog"><div class="heading"><button id="preview-close" aria-label="${w.close}">×</button><h2>${w.preview}</h2></div><p>${w.references}</p><div id="preview-rows"></div><p id="preview-error" class="error" role="alert"></p><div class="actions"><button id="preview-cancel">${w.cancel}</button><button id="preview-apply" class="primary" disabled>${w.apply}</button></div></dialog>`;
     const q = (s) => this.shadowRoot.querySelector(s);
     const menu = q("ha-menu-button");
     if (menu) menu.hass = this._hass;
@@ -274,6 +291,24 @@ export class IDManagerPanel extends (globalThis.HTMLElement || class {}) {
     for (const id of ["close", "cancel"])
       q(`#${id}`).onclick = () => this.cancel();
     q("#confirm").onclick = () => this.save();
+    q("#conflict-filter").onclick = (event) => {
+      event.stopPropagation();
+      this.conflictOnly = !this.conflictOnly;
+      this.refresh();
+      this.togglePicker(true);
+    };
+    q("#copy-id").onclick = async () => {
+      const object = this.store?.objects.entities.find(
+        (o) => o.id === this.selected.entities,
+      );
+      if (this.kind === "entities" && object) {
+        try {
+          await navigator.clipboard.writeText(object.entity_id);
+        } catch {
+          q("#error").textContent = object.entity_id;
+        }
+      }
+    };
     q("dialog").addEventListener("cancel", (e) => {
       e.preventDefault();
       this.cancel();
@@ -441,6 +476,10 @@ export class IDManagerPanel extends (globalThis.HTMLElement || class {}) {
       });
       if (!this.isConnected) return;
       this.store = new DraftStore(snapshot);
+      this.conflicts = {};
+      this.conflictOnly = false;
+      this.checkKey = null;
+      this.checkError = "";
       this.selected = {};
       this.busy = false;
       q("#error").textContent = "";
@@ -562,12 +601,26 @@ export class IDManagerPanel extends (globalThis.HTMLElement || class {}) {
       description.textContent = object.description;
       text.append(description);
     }
+    if (object.entity_id) {
+      const fullId = document.createElement("span");
+      fullId.className = "object-current-id";
+      fullId.textContent = object.entity_id;
+      text.append(fullId);
+    }
     node.append(text);
     const parentRow = document.createElement("span");
     parentRow.className = "object-prefix";
     const ownRow = document.createElement("span");
     ownRow.className = "object-own";
     node.append(parentRow, ownRow);
+    if (this.objectConflicts(object).length) {
+      const warning = document.createElement("ha-icon");
+      warning.icon = "mdi:alert-circle";
+      warning.className = "object-conflict";
+      warning.title = this.words.conflicts;
+      warning.setAttribute("aria-label", this.words.conflicts);
+      ownRow.append(warning);
+    }
     const prefix = this.store.prefix(this.kind, object);
     if (prefix) {
       const chip = document.createElement("span");
@@ -594,6 +647,9 @@ export class IDManagerPanel extends (globalThis.HTMLElement || class {}) {
     const q = (s) => this.shadowRoot.querySelector(s),
       filter = q("#object-search").value.trim().toLocaleLowerCase();
     const rows = [...this.store.objects[this.kind]]
+      .filter(
+        (object) => !this.conflictOnly || this.objectConflicts(object).length,
+      )
       .filter((object) =>
         [
           this.objectLabel(object),
@@ -691,6 +747,7 @@ export class IDManagerPanel extends (globalThis.HTMLElement || class {}) {
   }
   refresh() {
     if (!this.store) return;
+    this.scheduleCheck();
     const q = (s) => this.shadowRoot.querySelector(s),
       w = this.words,
       id = this.selected[this.kind];
@@ -704,6 +761,31 @@ export class IDManagerPanel extends (globalThis.HTMLElement || class {}) {
     q("#selected-link").replaceChildren();
     if (current) q("#selected-link").append(this.cardLink(current));
     if (!q("#object-dropdown").hidden) this.renderOptions();
+    const issues = current ? this.objectConflicts(current) : [];
+    q("#conflict-detail").textContent = issues
+      .map((issue) => {
+        const peers = issue.related.map((peer) => {
+          const object = this.store.objects.entities.find((o) => o.id === peer);
+          return object
+            ? `${object.area_name || w.noArea}/${object.device_name || w.noDevice}/${object.name}`
+            : peer;
+        });
+        return `${issue.target}: ${peers.length ? w.conflictWith + ": " + peers.join(", ") : w[issue.reason] || issue.reason}`;
+      })
+      .filter((line, i, all) => all.indexOf(line) === i)
+      .join("\n");
+    const count = Object.keys(this.conflicts || {}).length;
+    q("#conflict-filter").textContent =
+      this.checkError ||
+      (this.checking ? w.conflictCheck : `${w.conflicts}: ${count}`);
+    q("#conflict-filter").setAttribute(
+      "aria-pressed",
+      String(Boolean(this.conflictOnly)),
+    );
+    q("#conflict-filter").disabled =
+      this.busy || Boolean(this.checkError) || (!count && !this.conflictOnly);
+    q("#copy-id").hidden = this.kind !== "entities" || !current?.entity_id;
+    q("#copy-id").textContent = w.copyId;
     q("#count").textContent = `${w.changed}: ${this.store.count}`;
     q("#validation").textContent = this.store.valid ? "" : w.invalid;
     q("#confirm").disabled =
@@ -718,8 +800,64 @@ export class IDManagerPanel extends (globalThis.HTMLElement || class {}) {
       for (const node of this.shadowRoot.querySelectorAll(selector))
         node.disabled = this.busy;
   }
+  objectConflicts(object) {
+    if (!this.store) return [];
+    if (this.kind === "entities") return this.conflicts?.[object.id] || [];
+    if (this.kind === "areas" || this.kind === "devices") {
+      return this.store.objects.entities
+        .filter(
+          (entity) =>
+            (this.kind === "areas" ? entity.area_id : entity.device_id) ===
+            object.id,
+        )
+        .flatMap((entity) => this.conflicts?.[entity.id] || []);
+    }
+    return [];
+  }
+  scheduleCheck() {
+    if (!this.store?.valid) {
+      clearTimeout(this.checkTimer);
+      this.checkKey = null;
+      this.conflicts = {};
+      this.checking = false;
+      this.checkError = "";
+      return;
+    }
+    const store = this.store;
+    const changes = store.changes();
+    const key = JSON.stringify([store.revision, changes]);
+    if (key === this.checkKey) return;
+    this.checkKey = key;
+    this.checking = true;
+    this.checkError = "";
+    this.conflicts = {};
+    clearTimeout(this.checkTimer);
+    this.checkTimer = setTimeout(async () => {
+      try {
+        const result = await this._hass.callWS({
+          type: "entity_id_manager/editor/check",
+          revision: store.revision,
+          changes,
+        });
+        if (this.store !== store || this.checkKey !== key) return;
+        this.conflicts = result;
+      } catch (error) {
+        if (this.store !== store || this.checkKey !== key) return;
+        this.checkError =
+          error.code === "stale_editor"
+            ? this.words.stale
+            : this.words.checkFailed;
+      } finally {
+        if (this.store === store && this.checkKey === key) {
+          this.checking = false;
+          this.refresh();
+        }
+      }
+    }, 250);
+  }
   cancel() {
     if (this.busy) return;
+    clearTimeout(this.checkTimer);
     this.store = null;
     this.closePicker();
     this.shadowRoot?.querySelector("dialog")?.close();

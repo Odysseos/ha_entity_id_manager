@@ -436,6 +436,7 @@ async def test_editor_admin_only(ctx):
     from custom_components.entity_id_manager.editor import (
         websocket_apply,
         websocket_automatic,
+        websocket_check,
         websocket_get,
         websocket_preview,
         websocket_save,
@@ -448,6 +449,7 @@ async def test_editor_admin_only(ctx):
         websocket_preview,
         websocket_apply,
         websocket_automatic,
+        websocket_check,
     ]:
         with pytest.raises(Unauthorized):
             handler(hass, SimpleNamespace(user=SimpleNamespace(is_admin=False)), {"id": 1})
@@ -525,4 +527,32 @@ async def test_area_name_fallback(ctx):
     assert manager.snapshot()[0].new == "binary_sensor.neptun_water_leak"
     hass.config_entries.async_update_entry(entry, options={})
     assert manager.snapshot() == []
+    await hass.async_stop()
+
+
+@pytest.mark.asyncio
+async def test_draft_conflicts_do_not_save(ctx):
+    from copy import deepcopy
+
+    from custom_components.entity_id_manager.editor import draft_conflicts
+
+    hass, entry, area, device, entity = await ctx()
+    registry = er.async_get(hass)
+    other = registry.async_get_or_create(
+        "binary_sensor", "demo", "second", device_id=device.id, original_name="Other"
+    )
+    manager = Manager(hass, entry)
+    before = deepcopy(dict(entry.options)), deepcopy(dict(entry.data))
+    changes = {"entities": {entity.id: "test", other.id: "test"}}
+    issues = draft_conflicts(hass, manager, changes)
+    assert set(issues) == {entity.id, other.id}
+    assert issues[entity.id][0]["target"] == "binary_sensor.bathroom_neptun_test"
+    assert other.id in issues[entity.id][0]["related"]
+    assert (dict(entry.options), dict(entry.data)) == before
+    assert draft_conflicts(hass, manager, {"entities": {other.id: "different"}}) == {}
+    registry.async_update_entity(
+        other.entity_id, new_entity_id="binary_sensor.bathroom_neptun_test"
+    )
+    issues = draft_conflicts(hass, manager, {"entities": {entity.id: "test"}})
+    assert set(issues) == {entity.id, other.id}
     await hass.async_stop()

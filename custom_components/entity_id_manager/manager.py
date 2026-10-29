@@ -22,10 +22,10 @@ class Manager:
         self.lock = asyncio.Lock()
         self.unsub = None
 
-    def snapshot(self):
+    def snapshot(self, options=None, *, persist=True):
         registry = er.async_get(self.hass)
         devices = dr.async_get(self.hass)
-        options = self.entry.options
+        options = self.entry.options if options is None else options
         areas = options.get("areas", {})
         overrides = options.get("devices", {})
         suffixes = options.get("entities", {})
@@ -63,7 +63,7 @@ class Manager:
                 continue
             if new != entity.entity_id:
                 rows.append(Rename(entity.id, entity.entity_id, new))
-        if fallbacks != original_fallbacks:
+        if persist and fallbacks != original_fallbacks:
             self.hass.config_entries.async_update_entry(
                 self.entry, data={**self.entry.data, "fallback_suffixes": fallbacks}
             )

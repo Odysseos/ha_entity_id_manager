@@ -111,10 +111,35 @@ for (const kind of ["areas", "devices", "entities"]) {
 console.log("Name-only sorting: passed");
 
 const names = ["Мультисенсор (old)", "Мультисенсор"];
-const compare = (kind, rows) => rows.sort((a, b) => IDManagerPanel.prototype.compareObjects.call({kind}, a, b));
-const devices = compare("devices", names.map((name, i) => ({id: String(i), name, area_name: "Ванная"})));
-const entities = compare("entities", names.flatMap((device_name, i) => ["Температура", "Батарея"].map((name, j) => ({id: `${i}-${j}`, name, device_name, area_name: "Ванная"}))));
-assert.deepEqual(devices.map(row => row.name), ["Мультисенсор", "Мультисенсор (old)"]);
-assert.deepEqual(entities.map(row => row.device_name), ["Мультисенсор", "Мультисенсор", "Мультисенсор (old)", "Мультисенсор (old)"]);
-assert.deepEqual(entities.map(row => row.name), ["Батарея", "Температура", "Батарея", "Температура"]);
+const compare = (kind, rows) =>
+  rows.sort((a, b) =>
+    IDManagerPanel.prototype.compareObjects.call({ kind }, a, b),
+  );
+const devices = compare(
+  "devices",
+  names.map((name, i) => ({ id: String(i), name, area_name: "Ванная" })),
+);
+const entities = compare(
+  "entities",
+  names.flatMap((device_name, i) =>
+    ["Температура", "Батарея"].map((name, j) => ({
+      id: `${i}-${j}`,
+      name,
+      device_name,
+      area_name: "Ванная",
+    })),
+  ),
+);
+assert.deepEqual(
+  devices.map((row) => row.name),
+  ["Мультисенсор", "Мультисенсор (old)"],
+);
+assert.deepEqual(
+  entities.map((row) => row.device_name),
+  ["Мультисенсор", "Мультисенсор", "Мультисенсор (old)", "Мультисенсор (old)"],
+);
+assert.deepEqual(
+  entities.map((row) => row.name),
+  ["Батарея", "Температура", "Батарея", "Температура"],
+);
 console.log("Hierarchical sorting: passed");

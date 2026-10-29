@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.4.0
+
+- Check draft mappings for final entity ID conflicts using the same backend naming rules as rename previews, without saving drafts.
+- Mark conflicting entities and their parent devices and areas, show conflict details, and filter affected objects.
+- Show the current full entity ID on a third line and provide a copy action.
+- Preserve the ability to save incomplete mappings while preventing conflicting renames.
+
 ## 0.3.12
 
 - Compare area, device and entity names separately so parent ordering matches across tabs regardless of path separators.

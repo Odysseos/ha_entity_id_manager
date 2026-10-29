@@ -121,6 +121,31 @@ def snapshot(hass, entry):
     }
 
 
+def draft_options(hass, entry, changes):
+    if not isinstance(changes, dict) or any(key not in KEYS for key in changes):
+        raise EditError("invalid_changes", "Invalid mapping section")
+    available = {key: {obj["id"] for obj in rows} for key, rows in objects(hass).items()}
+    options = deepcopy(dict(entry.options))
+    for key, values in changes.items():
+        if not isinstance(values, dict):
+            raise EditError("invalid_changes", "Mappings must be dictionaries")
+        section = options.setdefault(key, {})
+        for object_id, value in values.items():
+            if not isinstance(value, str):
+                raise EditError("invalid_part", "ID part must be a string")
+            try:
+                part = validate_part(value)
+            except ValueError as err:
+                raise EditError("invalid_part", str(err)) from err
+            if object_id not in available[key] and part:
+                raise EditError("missing_object", "Object no longer exists")
+            if part:
+                section[object_id] = part
+            else:
+                section.pop(object_id, None)
+    return options
+
+
 async def save(hass, manager, expected_revision, changes):
     async with manager.lock:
         entry = manager.entry
@@ -128,25 +153,7 @@ async def save(hass, manager, expected_revision, changes):
             raise EditError("stale_editor", "Saved mappings changed. Reopen the editor.")
         if not isinstance(changes, dict) or any(key not in KEYS for key in changes):
             raise EditError("invalid_changes", "Invalid mapping section")
-        available = {key: {obj["id"] for obj in rows} for key, rows in objects(hass).items()}
-        options = deepcopy(dict(entry.options))
-        for key, values in changes.items():
-            if not isinstance(values, dict):
-                raise EditError("invalid_changes", "Mappings must be dictionaries")
-            section = options.setdefault(key, {})
-            for object_id, value in values.items():
-                if not isinstance(value, str):
-                    raise EditError("invalid_part", "ID part must be a string")
-                try:
-                    part = validate_part(value)
-                except ValueError as err:
-                    raise EditError("invalid_part", str(err)) from err
-                if object_id not in available[key] and part:
-                    raise EditError("missing_object", "Object no longer exists")
-                if part:
-                    section[object_id] = part
-                else:
-                    section.pop(object_id, None)
+        options = draft_options(hass, entry, changes)
         # All values were validated before this single configuration write.
         hass.config_entries.async_update_entry(entry, options=options)
         return snapshot(hass, entry)
@@ -188,6 +195,7 @@ def register(hass):
         return
     websocket_api.async_register_command(hass, websocket_get)
     websocket_api.async_register_command(hass, websocket_save)
+    websocket_api.async_register_command(hass, websocket_check)
     websocket_api.async_register_command(hass, websocket_preview)
     websocket_api.async_register_command(hass, websocket_apply)
     websocket_api.async_register_command(hass, websocket_automatic)
@@ -268,5 +276,45 @@ async def websocket_automatic(hass, connection, msg):
         connection.send_result(
             msg["id"], await set_automatic(hass, get_manager(hass), msg["enabled"])
         )
+    except EditError as err:
+        connection.send_error(msg["id"], err.code, str(err))
+
+
+def draft_conflicts(hass, manager, changes):
+    options = draft_options(hass, manager.entry, changes)
+    rows = manager.snapshot(options, persist=False)
+    registry = er.async_get(hass)
+    targets = {}
+    for row in rows:
+        targets.setdefault(row.new, []).append(row.registry_id)
+    result = {}
+    for row in rows:
+        if not row.conflict:
+            continue
+        ids = set(targets[row.new])
+        if occupant := registry.async_get(row.new):
+            ids.add(occupant.id)
+        for object_id in ids:
+            result.setdefault(object_id, []).append(
+                {
+                    "target": row.new,
+                    "reason": row.conflict,
+                    "related": sorted(ids - {object_id}),
+                }
+            )
+    return result
+
+
+@websocket_api.websocket_command(
+    {"type": f"{DOMAIN}/editor/check", vol.Required("revision"): str, vol.Required("changes"): dict}
+)
+@websocket_api.require_admin
+@websocket_api.async_response
+async def websocket_check(hass, connection, msg):
+    try:
+        manager = get_manager(hass)
+        if revision(manager.entry) != msg["revision"]:
+            raise EditError("stale_editor", "Saved mappings changed. Reopen the editor.")
+        connection.send_result(msg["id"], draft_conflicts(hass, manager, msg["changes"]))
     except EditError as err:
         connection.send_error(msg["id"], err.code, str(err))

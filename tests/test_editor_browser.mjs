@@ -31,6 +31,7 @@ try {
     window.test={snapshot,calls:[],fail:false};
     document.querySelector('entity-id-manager-panel').hass={locale:{language:'ru'},callWS:async(msg)=>{
       if(msg.type.endsWith('/get'))return structuredClone(window.test.snapshot);
+      if(msg.type.endsWith('/check'))return window.test.conflicts || {};
       window.test.calls.push(structuredClone(msg));
       if(msg.type==='entity_id_manager/automatic'){snapshot.auto_new=msg.enabled;return {auto_new:msg.enabled};}
       if(msg.type==='entity_id_manager/preview')return [{registry_id:'valid',old:'sensor.old',new:'sensor.next',conflict:''},{registry_id:'blocked',old:'sensor.other',new:'sensor.taken',conflict:'occupied'}];
@@ -187,6 +188,11 @@ try {
     "/config/entities?more-info-entity-id=sensor.test",
   );
 
+  assert.equal(
+    await q("#object .object-current-id").textContent(),
+    "sensor.test",
+  );
+  assert.equal(await q("#copy-id").isVisible(), true);
   assert.equal(await q("#object .object-icon").count(), 1);
   assert.equal(
     await q("#object .object-description").textContent(),
@@ -329,6 +335,34 @@ try {
   assert.equal(await q("#object").isVisible(), true);
   await q("#cancel").click();
   assert.deepEqual(errors, []);
+  await page.evaluate(() => {
+    window.test.conflicts = {
+      e: [
+        {
+          target: "sensor.duplicate",
+          reason: "occupied",
+          related: ["no_area"],
+        },
+      ],
+      no_area: [
+        { target: "sensor.duplicate", reason: "occupied", related: ["e"] },
+      ],
+    };
+  });
+  await q("#open").click();
+  await q("#conflict-filter").filter({ hasText: "2" }).waitFor();
+  await q('[data-kind="entities"]').click();
+  assert.equal(await q("#object .object-conflict").count(), 1);
+  assert.match(await q("#conflict-detail").textContent(), /sensor.duplicate/);
+  await q("#conflict-filter").click();
+  assert.equal(await q(".object-option").count(), 2);
+  await page.keyboard.press("Escape");
+  await q('[data-kind="devices"]').click();
+  assert.equal(await q("#object .object-conflict").count(), 1);
+  await q('[data-kind="areas"]').click();
+  await choose("a");
+  assert.equal(await q("#object .object-conflict").count(), 1);
+  await q("#cancel").click();
   console.log(
     "Browser editor: selection, draft labels, reset, clear, cancel, batch save, validation, stale guard and viewport popover geometry, preview, automatic mode and direct settings entry passed",
   );

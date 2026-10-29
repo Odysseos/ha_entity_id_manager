@@ -218,12 +218,12 @@ export class IDManagerPanel extends (globalThis.HTMLElement || class {}) {
       [hidden]{display:none!important}.picker{position:relative}#object{border-radius:4px 4px 0 0;border-bottom:1px solid var(--secondary-text-color,#777);background:var(--secondary-background-color,#f5f5f5);padding:16px 12px;width:100%;text-align:left}#object::after{content:"⌄";margin-left:auto;color:var(--secondary-text-color,#666)}
       .object-row{display:grid;grid-template-columns:24px minmax(0,1fr) minmax(0,1fr) auto;align-items:center;column-gap:10px;row-gap:4px;color:var(--primary-text-color,#222);font-weight:normal}.object-icon{grid-column:1;grid-row:1 / 3;--mdc-icon-size:24px;color:var(--secondary-text-color,#666)}.object-text{display:contents}.object-name{grid-column:2;grid-row:1}.object-description{grid-column:2;grid-row:2}.object-prefix{grid-column:3;grid-row:1}.object-own{grid-column:3;grid-row:2}.object-prefix,.object-own{display:flex;flex-wrap:wrap;gap:6px;min-width:0}.object-row::after{grid-column:4;grid-row:1 / 3}.object-name{display:block;overflow-wrap:anywhere}.object-description{display:block;font-size:.8em;line-height:1.4;color:var(--secondary-text-color,#666);margin-top:0}.id-chip{font-family:monospace;font-size:.92em;border-radius:4px;padding:3px 7px;overflow-wrap:anywhere;background:color-mix(in srgb,#2196f3 18%,var(--card-background-color,#fff));color:var(--primary-text-color,#222)}.id-chip.prefix{background:transparent;padding:0;display:inline-flex;align-items:baseline;flex-wrap:wrap}.parent-part{padding:3px 7px;border-radius:4px}.parent-part.prefix{background:color-mix(in srgb,#ffc107 22%,var(--card-background-color,#fff))}.parent-part.added{background:color-mix(in srgb,var(--success-color,#0f9d58) 24%,var(--card-background-color,white))}.id-chip.removed{background:color-mix(in srgb,var(--error-color,#db4437) 22%,var(--card-background-color,white));text-decoration:line-through;text-decoration-thickness:1.5px}.id-chip.added{background:color-mix(in srgb,var(--success-color,#0f9d58) 24%,var(--card-background-color,white))}
       .area-row{grid-template-columns:24px auto minmax(0,1fr) auto}.area-row .object-icon,.area-row::after{grid-row:1}.area-row .object-own{grid-row:1}.area-row .object-prefix{display:none}
-      .object-current-id{grid-column:2 / 4;grid-row:3;font-family:monospace;font-size:.75em;color:var(--secondary-text-color,#666);overflow-wrap:anywhere;user-select:all}.object-conflict{color:var(--error-color,#db4437);--mdc-icon-size:20px}#conflict-filter[aria-pressed=true]{background:var(--secondary-background-color,#eee)}#conflict-detail{font-size:.85em;overflow-wrap:anywhere}#copy-id{font-size:.85em;padding:4px 0}
-      #object-dropdown{display:flex;flex-direction:column;position:fixed;inset:auto;margin:0;box-sizing:border-box;overflow:hidden;z-index:2;background:var(--card-background-color,white);border:1px solid var(--divider-color,#ccc);border-radius:0 0 8px 8px;box-shadow:0 6px 18px #0003}#object-search{display:block;flex:0 0 auto;border-radius:0;margin:0;line-height:1.5;min-height:56px}#object-search:focus-visible{outline-offset:-2px}#object-list{flex:1 1 auto;min-height:0;max-height:none;overflow:auto;overscroll-behavior:contain;padding-top:6px}#object-list button{box-sizing:border-box;min-height:48px;line-height:1.5;border-radius:0;width:100%;text-align:left;padding:14px 12px}#object-list button:hover,#object-list button:focus-visible,#object-list button[aria-selected=true]{background:var(--secondary-background-color,#eee)}
+      .object-current-id{grid-column:2 / 4;grid-row:3;font-family:monospace;font-size:.75em;color:var(--secondary-text-color,#666);overflow-wrap:anywhere;user-select:all}.object-conflict{color:var(--error-color,#db4437);--mdc-icon-size:20px}#conflict-filter[aria-pressed=true]{background:var(--secondary-background-color,#eee)}#conflict-detail{font-size:.85em;overflow-wrap:anywhere;white-space:pre-wrap;max-height:180px;overflow:auto}.conflict-jump{display:flex;align-items:center;gap:4px;color:var(--error-color,#db4437);padding:8px;flex:0 0 auto}#conflict-more{padding:4px 0;font-size:.85em}#copy-id{font-size:.85em;padding:4px 0}
+      #object-dropdown{display:flex;flex-direction:column;position:fixed;inset:auto;margin:0;box-sizing:border-box;overflow:hidden;z-index:2;background:var(--card-background-color,white);border:1px solid var(--divider-color,#ccc);border-radius:0 0 8px 8px;box-shadow:0 6px 18px #0003}#object-search{display:block;flex:0 0 auto;border-radius:0;margin:0;line-height:1.5;min-height:56px}#object-search:focus-visible{outline-offset:-2px}#object-list{flex:1 1 auto;min-height:0;max-height:none;overflow:auto;overscroll-behavior:contain;padding-top:6px}#object-list .object-option{box-sizing:border-box;min-height:48px;line-height:1.5;border-radius:0;width:100%;text-align:left;padding:14px 12px}#object-list .object-option:hover,#object-list .object-option:focus-visible,#object-list .object-option[aria-selected=true]{background:var(--secondary-background-color,#eee)}
       .automatic{display:flex;align-items:center;gap:12px}.automatic input,.preview-row input{width:auto;min-height:0;flex:0 0 auto}.preview-row{display:flex;align-items:flex-start;gap:12px;padding:12px 0;border-bottom:1px solid var(--divider-color,#ddd)}.preview-ids{overflow-wrap:anywhere;line-height:1.6}.preview-ids code{display:block}.preview-row .error{font-size:14px}
-      #selected-link{display:flex;flex:0 0 40px}.selected-row,.object-choice{display:flex;align-items:center;min-width:0}.selected-row{background:var(--secondary-background-color,#f5f5f5)}.selected-row #object{flex:1;min-width:0;width:auto}.object-link{display:flex;align-items:center;justify-content:center;flex:0 0 40px;min-height:44px;text-decoration:none;color:var(--secondary-text-color,#666);--mdc-icon-size:20px}.object-link:focus-visible{outline:2px solid var(--primary-color);outline-offset:-2px}.object-link:hover{color:var(--primary-color)}#object-list .object-option{flex:1;min-width:0;width:auto}.object-choice:hover{background:var(--secondary-background-color,#eee)}
+      #selected-link{display:flex;flex:0 0 auto;align-items:center}.selected-row,.object-choice{display:flex;align-items:center;min-width:0}.selected-row{background:var(--secondary-background-color,#f5f5f5)}.selected-row #object{flex:1;min-width:0;width:auto}.object-link{display:flex;align-items:center;justify-content:center;flex:0 0 40px;min-height:44px;text-decoration:none;color:var(--secondary-text-color,#666);--mdc-icon-size:20px}.object-link:focus-visible{outline:2px solid var(--primary-color);outline-offset:-2px}.object-link:hover{color:var(--primary-color)}#object-list .object-option{flex:1;min-width:0;width:auto}.object-choice:hover{background:var(--secondary-background-color,#eee)}
     </style><header><ha-menu-button></ha-menu-button><h1>Entity ID Manager</h1></header><main><h2>${w.title}</h2><p>${w.intro}</p><button id="open" class="primary">${w.open}</button><button id="preview-open">${w.preview}</button><label class="automatic"><input id="automatic" type="checkbox" disabled> ${w.automatic}</label><p id="status" role="status"></p></main>
-    <dialog id="editor-dialog"><div class="heading"><button id="close" aria-label="${w.close}">×</button><h2>${w.title}</h2></div><div class="tabs" role="tablist">${KEYS.map((k) => `<button role="tab" data-kind="${k}">${w[k]}</button>`).join("")}</div><label id="object-label">${w.choose}</label><div class="picker"><div class="selected-row"><button id="object" class="object-row" aria-labelledby="object-label" aria-haspopup="listbox" aria-expanded="false" aria-controls="object-list"></button><span id="selected-link"></span></div><div id="object-dropdown" popover="manual" hidden><input id="object-search" type="search" aria-label="${w.search}" placeholder="${w.search}" autocomplete="off"><div id="object-list" role="listbox" aria-labelledby="object-label"></div></div></div><label for="part">${w.part}</label><input id="part" type="text" autocomplete="off" autocapitalize="none" spellcheck="false"><div class="tools"><button id="clear">${w.clear}</button><button id="reset">${w.reset}</button></div><p id="validation" class="error" role="status"></p><p id="conflict-detail" class="error" role="status"></p><button id="copy-id" hidden></button><button id="conflict-filter" aria-pressed="false"></button><p id="count" class="count"></p><p id="error" class="error" role="alert"></p><div class="actions"><button id="cancel">${w.cancel}</button><button id="confirm" class="primary">${w.confirm}</button></div></dialog><dialog id="preview-dialog"><div class="heading"><button id="preview-close" aria-label="${w.close}">×</button><h2>${w.preview}</h2></div><p>${w.references}</p><div id="preview-rows"></div><p id="preview-error" class="error" role="alert"></p><div class="actions"><button id="preview-cancel">${w.cancel}</button><button id="preview-apply" class="primary" disabled>${w.apply}</button></div></dialog>`;
+    <dialog id="editor-dialog"><div class="heading"><button id="close" aria-label="${w.close}">×</button><h2>${w.title}</h2></div><div class="tabs" role="tablist">${KEYS.map((k) => `<button role="tab" data-kind="${k}">${w[k]}</button>`).join("")}</div><label id="object-label">${w.choose}</label><div class="picker"><div class="selected-row"><button id="object" class="object-row" aria-labelledby="object-label" aria-haspopup="listbox" aria-expanded="false" aria-controls="object-list"></button><span id="selected-link"></span></div><div id="object-dropdown" popover="manual" hidden><input id="object-search" type="search" aria-label="${w.search}" placeholder="${w.search}" autocomplete="off"><div id="object-list" role="listbox" aria-labelledby="object-label"></div></div></div><label for="part">${w.part}</label><input id="part" type="text" autocomplete="off" autocapitalize="none" spellcheck="false"><div class="tools"><button id="clear">${w.clear}</button><button id="reset">${w.reset}</button></div><p id="validation" class="error" role="status"></p><div id="conflict-detail" class="error" role="status"></div><button id="conflict-more" hidden></button><button id="copy-id" hidden></button><button id="conflict-filter" aria-pressed="false"></button><p id="count" class="count"></p><p id="error" class="error" role="alert"></p><div class="actions"><button id="cancel">${w.cancel}</button><button id="confirm" class="primary">${w.confirm}</button></div></dialog><dialog id="preview-dialog"><div class="heading"><button id="preview-close" aria-label="${w.close}">×</button><h2>${w.preview}</h2></div><p>${w.references}</p><div id="preview-rows"></div><p id="preview-error" class="error" role="alert"></p><div class="actions"><button id="preview-cancel">${w.cancel}</button><button id="preview-apply" class="primary" disabled>${w.apply}</button></div></dialog>`;
     const q = (s) => this.shadowRoot.querySelector(s);
     const menu = q("ha-menu-button");
     if (menu) menu.hass = this._hass;
@@ -291,9 +291,17 @@ export class IDManagerPanel extends (globalThis.HTMLElement || class {}) {
     for (const id of ["close", "cancel"])
       q(`#${id}`).onclick = () => this.cancel();
     q("#confirm").onclick = () => this.save();
+    q("#conflict-more").onclick = () => {
+      this.expandedConflict =
+        this.expandedConflict === this.selected.entities
+          ? null
+          : this.selected.entities;
+      this.refresh();
+    };
     q("#conflict-filter").onclick = (event) => {
       event.stopPropagation();
       this.conflictOnly = !this.conflictOnly;
+      this.conflictScope = null;
       this.refresh();
       this.togglePicker(true);
     };
@@ -478,6 +486,8 @@ export class IDManagerPanel extends (globalThis.HTMLElement || class {}) {
       this.store = new DraftStore(snapshot);
       this.conflicts = {};
       this.conflictOnly = false;
+      this.conflictScope = null;
+      this.expandedConflict = null;
       this.checkKey = null;
       this.checkError = "";
       this.selected = {};
@@ -613,7 +623,7 @@ export class IDManagerPanel extends (globalThis.HTMLElement || class {}) {
     const ownRow = document.createElement("span");
     ownRow.className = "object-own";
     node.append(parentRow, ownRow);
-    if (this.objectConflicts(object).length) {
+    if (this.kind === "entities" && this.objectConflicts(object).length) {
       const warning = document.createElement("ha-icon");
       warning.icon = "mdi:alert-circle";
       warning.className = "object-conflict";
@@ -647,6 +657,12 @@ export class IDManagerPanel extends (globalThis.HTMLElement || class {}) {
     const q = (s) => this.shadowRoot.querySelector(s),
       filter = q("#object-search").value.trim().toLocaleLowerCase();
     const rows = [...this.store.objects[this.kind]]
+      .filter(
+        (object) =>
+          !this.conflictScope ||
+          this.kind !== "entities" ||
+          object[this.conflictScope.field] === this.conflictScope.id,
+      )
       .filter(
         (object) => !this.conflictOnly || this.objectConflicts(object).length,
       )
@@ -684,7 +700,10 @@ export class IDManagerPanel extends (globalThis.HTMLElement || class {}) {
       };
       const wrapper = document.createElement("div");
       wrapper.className = "object-choice";
-      wrapper.append(option, this.cardLink(object));
+      wrapper.append(option);
+      const jump = this.conflictJump(object);
+      if (jump) wrapper.append(jump);
+      wrapper.append(this.cardLink(object));
       list.append(wrapper);
     }
     this.positionPicker();
@@ -759,21 +778,46 @@ export class IDManagerPanel extends (globalThis.HTMLElement || class {}) {
       (object) => object.id === id,
     );
     q("#selected-link").replaceChildren();
-    if (current) q("#selected-link").append(this.cardLink(current));
+    if (current) {
+      const jump = this.conflictJump(current);
+      if (jump) q("#selected-link").append(jump);
+      q("#selected-link").append(this.cardLink(current));
+    }
     if (!q("#object-dropdown").hidden) this.renderOptions();
-    const issues = current ? this.objectConflicts(current) : [];
-    q("#conflict-detail").textContent = issues
-      .map((issue) => {
-        const peers = issue.related.map((peer) => {
-          const object = this.store.objects.entities.find((o) => o.id === peer);
-          return object
-            ? `${object.area_name || w.noArea}/${object.device_name || w.noDevice}/${object.name}`
-            : peer;
-        });
-        return `${issue.target}: ${peers.length ? w.conflictWith + ": " + peers.join(", ") : w[issue.reason] || issue.reason}`;
-      })
-      .filter((line, i, all) => all.indexOf(line) === i)
-      .join("\n");
+    const issues =
+      this.kind === "entities" && current ? this.objectConflicts(current) : [];
+    const lines = [
+      ...new Set(
+        issues.flatMap((issue) => {
+          if (!issue.related.length)
+            return [`${issue.target}: ${w[issue.reason] || issue.reason}`];
+          return issue.related.map((peer) => {
+            const object = this.store.objects.entities.find(
+              (o) => o.id === peer,
+            );
+            const label = object
+              ? `${object.area_name || w.noArea}/${object.device_name || w.noDevice}/${object.name}`
+              : peer;
+            return `${issue.target}: ${w.conflictWith}: ${label}`;
+          });
+        }),
+      ),
+    ];
+    const expanded = this.expandedConflict === id;
+    q("#conflict-detail").textContent = (
+      expanded ? lines : lines.slice(0, 3)
+    ).join("\n");
+    q("#conflict-detail").hidden = !lines.length;
+    q("#conflict-more").hidden = lines.length <= 3;
+    q("#conflict-more").textContent =
+      this.words === WORDS.ru
+        ? expanded
+          ? "Свернуть"
+          : `Ещё ${lines.length - 3}`
+        : expanded
+          ? "Show less"
+          : `More ${lines.length - 3}`;
+    q("#conflict-more").setAttribute("aria-expanded", String(expanded));
     const count = Object.keys(this.conflicts || {}).length;
     q("#conflict-filter").textContent =
       this.checkError ||
@@ -799,6 +843,36 @@ export class IDManagerPanel extends (globalThis.HTMLElement || class {}) {
     for (const selector of ["#cancel", "#close", "[data-kind]"])
       for (const node of this.shadowRoot.querySelectorAll(selector))
         node.disabled = this.busy;
+  }
+  conflictJump(object) {
+    if (this.kind === "entities") return null;
+    const field = this.kind === "areas" ? "area_id" : "device_id";
+    const ids = this.store.objects.entities
+      .filter(
+        (entity) =>
+          entity[field] === object.id && this.conflicts?.[entity.id]?.length,
+      )
+      .map((entity) => entity.id);
+    if (!ids.length) return null;
+    const button = document.createElement("button");
+    button.className = "conflict-jump";
+    const icon = document.createElement("ha-icon");
+    icon.icon = "mdi:alert-circle";
+    icon.className = "object-conflict";
+    button.append(icon, document.createTextNode(String(ids.length)));
+    button.title = `${this.words.conflicts}: ${ids.length}`;
+    button.setAttribute("aria-label", button.title);
+    button.disabled = this.busy;
+    button.onclick = (event) => {
+      event.stopPropagation();
+      this.conflictScope = { field, id: object.id };
+      this.conflictOnly = true;
+      this.kind = "entities";
+      this.selected.entities = ids[0];
+      this.selectKind();
+      this.togglePicker(true);
+    };
+    return button;
   }
   objectConflicts(object) {
     if (!this.store) return [];

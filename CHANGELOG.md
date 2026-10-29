@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.4.1
+
+- Replace parent conflict details with a count and navigation to affected child entities.
+- Limit selected entity conflict details to three matches, with expandable scrolling for longer lists.
+
 ## 0.4.0
 
 - Check draft mappings for final entity ID conflicts using the same backend naming rules as rename previews, without saving drafts.

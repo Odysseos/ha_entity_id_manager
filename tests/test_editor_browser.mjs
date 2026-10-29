@@ -358,10 +358,48 @@ try {
   assert.equal(await q(".object-option").count(), 2);
   await page.keyboard.press("Escape");
   await q('[data-kind="devices"]').click();
-  assert.equal(await q("#object .object-conflict").count(), 1);
+  assert.equal(await q("#conflict-detail").isVisible(), false);
+  assert.equal(await q("#selected-link .conflict-jump").textContent(), "1");
+  await q("#selected-link .conflict-jump").click();
+  assert.equal(await q(".object-option").count(), 1);
+  assert.equal(await q(".object-option").getAttribute("data-object-id"), "e");
+  await page.keyboard.press("Escape");
   await q('[data-kind="areas"]').click();
   await choose("a");
-  assert.equal(await q("#object .object-conflict").count(), 1);
+  assert.equal(await q("#conflict-detail").isVisible(), false);
+  assert.equal(await q("#selected-link .conflict-jump").textContent(), "1");
+  await q("#cancel").click();
+  await page.evaluate(() => {
+    window.test.conflicts.e[0].related = Array.from(
+      { length: 12 },
+      (_, i) => `peer_${i}`,
+    );
+  });
+  await q("#open").click();
+  await q("#conflict-filter").filter({ hasText: "2" }).waitFor();
+  await q('[data-kind="entities"]').click();
+  await choose("e");
+  assert.equal(
+    (await q("#conflict-detail").textContent()).split("\n").length,
+    3,
+  );
+  assert.equal(await q("#conflict-more").textContent(), "Ещё 9");
+  await q("#conflict-more").click();
+  assert.equal(
+    (await q("#conflict-detail").textContent()).split("\n").length,
+    12,
+  );
+  assert.ok(
+    await q("#conflict-detail").evaluate(
+      (node) =>
+        node.clientHeight <= 180 && node.scrollHeight > node.clientHeight,
+    ),
+  );
+  await q("#conflict-more").click();
+  assert.equal(
+    (await q("#conflict-detail").textContent()).split("\n").length,
+    3,
+  );
   await q("#cancel").click();
   console.log(
     "Browser editor: selection, draft labels, reset, clear, cancel, batch save, validation, stale guard and viewport popover geometry, preview, automatic mode and direct settings entry passed",

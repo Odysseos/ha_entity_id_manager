@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.4.3
+
+- Fix editor dialog dimensions and control row positions across tabs.
+- Reserve a constant selected-object height and keep the footer in place.
+- Scroll details inside the remaining middle region.
+
 ## 0.4.2
 
 - Place explicit list filters above the object picker with separate all-conflict and parent-conflict counts.

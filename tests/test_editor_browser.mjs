@@ -51,6 +51,32 @@ try {
   };
   await q("#open").click();
   await q("#editor-dialog").waitFor({ state: "visible" });
+  const layout = () =>
+    page.locator("entity-id-manager-panel").evaluate((panel) => {
+      const root = panel.shadowRoot;
+      return [
+        "#editor-dialog",
+        ".tabs",
+        ".object-filters",
+        ".picker",
+        "#part",
+        ".tools",
+        ".editor-footer",
+      ].map((selector) => {
+        const box = root.querySelector(selector).getBoundingClientRect();
+        return [box.x, box.y, box.width, box.height];
+      });
+    });
+  const fixedLayout = await layout();
+  for (const kind of ["devices", "entities", "areas"]) {
+    await q(`[data-kind="${kind}"]`).click();
+    assert.deepEqual(
+      await layout(),
+      fixedLayout,
+      `Layout must remain fixed on ${kind}`,
+    );
+  }
+
   await choose("a");
   assert.ok(
     await q("#object").evaluate((node) => {
@@ -280,8 +306,10 @@ try {
     });
   assert.equal(geometry.topLayer, true);
   assert.ok(
-    geometry.bottom > geometry.dialogBottom,
-    "Long list must extend beyond the dialog",
+    await q("#object-dropdown").evaluate((node) =>
+      node.matches(":popover-open"),
+    ),
+    "List must use the top layer independently of dialog layout",
   );
   assert.ok(geometry.bottom <= geometry.viewport - 7);
   assert.ok(geometry.height > 230);

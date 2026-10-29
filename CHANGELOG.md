@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.3.12
+
+- Compare area, device and entity names separately so parent ordering matches across tabs regardless of path separators.
+
 ## 0.3.11
 
 - Fall back to the effective area name normalized by Home Assistant when no area ID override is set.

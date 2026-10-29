@@ -473,10 +473,17 @@ export class IDManagerPanel extends (globalThis.HTMLElement || class {}) {
       const unassigned = Number(!a.area_name) - Number(!b.area_name);
       if (unassigned) return unassigned;
     }
-    return (
-      this.objectLabel(a).localeCompare(this.objectLabel(b)) ||
-      a.id.localeCompare(b.id)
-    );
+    if (this.kind !== "areas") {
+      const area = (a.area_name || "").localeCompare(b.area_name || "");
+      if (area) return area;
+    }
+    if (this.kind === "entities") {
+      const missing = Number(!a.device_name) - Number(!b.device_name);
+      if (missing) return missing;
+      const device = (a.device_name || "").localeCompare(b.device_name || "");
+      if (device) return device;
+    }
+    return a.name.localeCompare(b.name) || a.id.localeCompare(b.id);
   }
   cardLink(object) {
     const link = document.createElement("a");

@@ -65,9 +65,7 @@ class OptionsFlow(config_entries.OptionsFlow):
                 "value": object_id,
                 "label": f"{name} ({configured[object_id]})" if object_id in configured else name,
             }
-            for object_id, name in sorted(
-                objects, key=lambda item: (item[1].casefold(), item[0])
-            )
+            for object_id, name in sorted(objects, key=lambda item: (item[1].casefold(), item[0]))
         ]
         control = selector.SelectSelector(
             selector.SelectSelectorConfig(

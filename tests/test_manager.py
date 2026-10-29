@@ -505,3 +505,24 @@ async def test_editor_object_context_and_icons(ctx):
     assert row["area_id"] == kitchen.id
     assert row["device_id"] == device.id
     await hass.async_stop()
+
+
+@pytest.mark.asyncio
+async def test_area_name_fallback(ctx):
+    from homeassistant.util import slugify
+
+    hass, entry, area, device, entity = await ctx()
+    manager = Manager(hass, entry)
+    options = dict(entry.options)
+    options["areas"] = {}
+    hass.config_entries.async_update_entry(entry, options=options)
+    assert manager.snapshot()[0].new == f"binary_sensor.{slugify(area.name)}_neptun_water_leak"
+    kitchen = ar.async_get(hass).async_create("Кухня")
+    er.async_get(hass).async_update_entity(entity.entity_id, area_id=kitchen.id)
+    assert manager.snapshot()[0].new == f"binary_sensor.{slugify(kitchen.name)}_neptun_water_leak"
+    er.async_get(hass).async_update_entity(entity.entity_id, area_id=None)
+    dr.async_get(hass).async_update_device(device.id, area_id=None)
+    assert manager.snapshot()[0].new == "binary_sensor.neptun_water_leak"
+    hass.config_entries.async_update_entry(entry, options={})
+    assert manager.snapshot() == []
+    await hass.async_stop()

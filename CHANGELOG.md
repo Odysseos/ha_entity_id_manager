@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.3.11
+
+- Fall back to the effective area name normalized by Home Assistant when no area ID override is set.
+- Keep entities without any explicit mapping outside rename plans.
+
 ## 0.3.10
 
 - Sort objects by display name and context, independently of saved mappings and drafts.

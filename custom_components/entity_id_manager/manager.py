@@ -6,6 +6,7 @@ from collections import Counter
 
 from homeassistant.core import callback
 from homeassistant.exceptions import HomeAssistantError
+from homeassistant.helpers import area_registry as ar
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers import entity_registry as er
 from homeassistant.util import slugify
@@ -41,6 +42,9 @@ class Manager:
             suffix = suffixes.get(entity.id, "")
             if not (area or prefix or suffix):
                 continue
+            if not area and area_id:
+                if zone := ar.async_get(self.hass).async_get_area(area_id):
+                    area = slugify(zone.name)
             # A supplied suffix is exact. Otherwise use the integration's original
             # entity name; this does not depend on the current, possibly renamed ID.
             if not suffix:

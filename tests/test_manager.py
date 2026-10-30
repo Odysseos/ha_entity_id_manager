@@ -640,6 +640,42 @@ async def test_reference_transaction_yaml_dashboard_helpers_and_backup(ctx, monk
 
 
 @pytest.mark.asyncio
+async def test_primary_entity_omission_recommendation(ctx):
+    from homeassistant import loader
+    from homeassistant.helpers import frame
+
+    from custom_components.entity_id_manager.editor import recommend_omit
+
+    hass, entry, area, device, entity = await ctx()
+    loader.async_setup(hass)
+    frame.async_setup(hass)
+    primary = er.async_get(hass).async_get_or_create(
+        "switch", "demo", "main", device_id=device.id, has_entity_name=True
+    )
+    manager = Manager(hass, entry)
+    result = recommend_omit(hass, manager, primary.entity_id, {})
+    assert result == {"target": "switch.bathroom_neptun"}
+    assert primary.id not in entry.options["entities"]
+    assert recommend_omit(hass, manager, entity.entity_id, {}) is None
+    assert (
+        recommend_omit(hass, manager, primary.entity_id, {"entities": {primary.id: "state"}})
+        is None
+    )
+    assert recommend_omit(hass, manager, primary.entity_id, {"entities": {primary.id: ""}}) is None
+    hass.states.async_set("switch.bathroom_neptun", "on")
+    assert recommend_omit(hass, manager, primary.entity_id, {}) is None
+    hass.states.async_remove("switch.bathroom_neptun")
+    other = er.async_get(hass).async_get_or_create(
+        "switch", "demo", "other", device_id=device.id, original_name="Other"
+    )
+    assert recommend_omit(hass, manager, primary.entity_id, {"entities": {other.id: "-"}}) is None
+    assert recommend_omit(hass, manager, primary.entity_id, {"areas": {area.id: "kitchen"}}) == {
+        "target": "switch.kitchen_neptun"
+    }
+    await hass.async_stop()
+
+
+@pytest.mark.asyncio
 async def test_omitted_entity_suffix_saved_and_conflict_checked(ctx):
     from homeassistant import loader
     from homeassistant.helpers import frame

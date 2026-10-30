@@ -32,6 +32,7 @@ try {
     document.querySelector('entity-id-manager-panel').hass={locale:{language:'ru'},callWS:async(msg)=>{
       if(msg.type.endsWith('/get'))return structuredClone(window.test.snapshot);
       if(msg.type.endsWith('/check'))return window.test.conflicts || {};
+      if(msg.type.endsWith('/recommend_omit'))return {target:'sensor.living_room_neptun'};
       window.test.calls.push(structuredClone(msg));
       if(msg.type==='entity_id_manager/automatic'){snapshot.auto_new=msg.enabled;return {auto_new:msg.enabled};}
       if(msg.type==='entity_id_manager/preview')return [{registry_id:'valid',old:'sensor.old',new:'sensor.next',conflict:''},{registry_id:'blocked',old:'sensor.other',new:'sensor.taken',conflict:'occupied'}];
@@ -46,6 +47,7 @@ try {
 
   await page.goto("http://editor.test/");
   await page.evaluate(() => {
+    window.test.snapshot.objects.entities.find(object => object.id === 'e').omit_candidate = true;
     window.test.snapshot.objects.entities.push({
       id: "e2",
       name: "Температура",
@@ -76,6 +78,14 @@ try {
   const layout = () => q("#editor-dialog").boundingBox();
   const initial = await layout();
   await select("entities", "e");
+  await q("#omit-suggestion").waitFor({state: "visible"});
+  assert.equal(await q("#omit-segment").isChecked(), false);
+  await q("#omit-accept").click();
+  assert.equal(await q("#omit-segment").isChecked(), true);
+  assert.equal(await q("#omit-suggestion").isVisible(), false);
+  assert.equal(await page.evaluate(() => window.test.snapshot.mappings.entities.e), undefined);
+  await q("#reset").click();
+  assert.equal(await q("#omit-segment").isChecked(), false);
   assert.equal(
     await q("#object .object-current-id").textContent(),
     "sensor.test",

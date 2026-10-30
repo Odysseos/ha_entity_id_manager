@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.10.0
+
+- Suggest omitting the own ID segment for primary device entities marked with has_entity_name and no original_name.
+- Check the proposed ID against current entities and draft targets before offering the action; preserve existing segment choices.
+- Apply accepted suggestions only to editor drafts and cover eligibility, collisions and acceptance in tests.
+
 ## 0.9.0
 
 - Use “ID segment” consistently in the editor, translations, documentation, code and API fields while preserving saved mappings and entity identities.

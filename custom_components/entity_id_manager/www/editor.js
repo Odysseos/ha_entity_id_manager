@@ -632,7 +632,7 @@ export class IDManagerPanel extends (globalThis.HTMLElement || class {}) {
       @media(max-width:700px){#editor-dialog .object-filters{flex-wrap:nowrap;align-content:normal;overflow-x:auto;white-space:nowrap}#editor-dialog .object-filters > *{flex-shrink:0}#editor-dialog[open]{grid-template-rows:32px 40px minmax(0,1fr) 56px}.tree-layout{grid-template-columns:1fr;grid-template-rows:minmax(100px,1fr) minmax(220px,1fr);gap:8px}.editor-pane{grid-template-rows:16px 66px auto 40px auto minmax(0,1fr)}#editor-dialog #segment{height:40px}.editor-pane .tools{font:inherit}.tree-select .object-description,.tree-select .object-current-id{display:none}}
       .virtual-tree-surface{position:relative;width:100%;contain:layout style}.virtual-tree-item{position:absolute;inset-inline:0;overflow:hidden;box-sizing:border-box}.virtual-tree-item > .tree-line{height:100%;content-visibility:visible;contain-intrinsic-size:none}.virtual-tree-item .tree-select{height:100%;box-sizing:border-box;align-content:center;overflow:hidden}.virtual-tree-item .object-own{flex-wrap:nowrap;overflow:hidden}.virtual-tree-item .id-chip{flex-shrink:0}#object-list{padding:0;position:relative;overflow-anchor:none}
     </style><header><ha-menu-button></ha-menu-button><h1>Entity ID Manager</h1></header><main><h2>${w.title}</h2><p>${w.intro}</p><div class="main-actions"><button id="open" class="primary">${w.open}</button><button id="preview-open" class="primary">${w.preview}</button></div><label class="automatic"><input id="automatic" type="checkbox" disabled> ${w.automatic}</label><p id="status" role="status"></p></main>
-    <dialog id="editor-dialog"><div class="heading"><button id="close" aria-label="${w.close}">×</button><h2>${w.title}</h2></div><div class="object-filters" role="group" aria-label="${this.words === WORDS.ru ? "Фильтр списка" : "List filter"}"><span>${this.words === WORDS.ru ? "Фильтр:" : "Filter:"}</span><button id="filter-all"></button><button id="conflict-filter"></button><button id="filter-scope" hidden></button><span id="check-status" role="status"></span></div><div class="tree-layout"><section class="tree-pane"><div id="object-dropdown"><input id="object-search" type="search" aria-label="${w.search}" placeholder="${w.search}" autocomplete="off"><div id="object-list" role="tree" aria-label="${w.choose}"></div></div></section><section class="editor-pane"><label id="object-label">${w.choose}</label><div class="picker"><div class="selected-row"><div id="object" class="object-row" aria-labelledby="object-label"></div><span id="selected-link"></span></div></div><div class="segment-heading"><label for="segment">${w.segment}</label><label id="omit-label"><input id="omit-segment" type="checkbox"><span>${this.words === WORDS.ru ? "Без собственного сегмента ID" : "No own ID segment"}</span></label></div><input id="segment" type="text" autocomplete="off" autocapitalize="none" spellcheck="false"><div class="tools"><button id="clear">${w.clear}</button><button id="reset">${w.reset}</button><button id="bulk-copy"></button></div><div class="editor-details"><p id="target-id"></p><div id="bulk-choice" hidden><p id="bulk-question"></p><button id="bulk-empty"></button><button id="bulk-all"></button><button id="bulk-cancel"></button></div><div id="bulk-result" hidden><span id="bulk-message" role="status"></span><button id="bulk-undo"></button></div><p id="validation" class="error" role="status"></p><div id="conflict-detail" class="error" role="status"></div><button id="conflict-more" hidden></button><button id="copy-id" hidden></button><p id="error" class="error" role="alert"></p></div></section></div><div class="editor-footer"><p id="count" class="count"></p><div class="actions"><button id="cancel">${w.cancel}</button><button id="confirm" class="primary">${w.confirm}</button></div></div></dialog><dialog id="preview-dialog"><div class="heading"><button id="preview-close" aria-label="${w.close}">×</button><h2>${w.preview}</h2></div><p>${w.references}</p><div id="preview-rows"></div><p id="preview-error" class="error" role="alert"></p><div class="actions"><button id="preview-cancel">${w.cancel}</button><button id="preview-apply" class="primary" disabled>${w.apply}</button></div></dialog>`;
+    <dialog id="editor-dialog"><div class="heading"><button id="close" aria-label="${w.close}">×</button><h2>${w.title}</h2></div><div class="object-filters" role="group" aria-label="${this.words === WORDS.ru ? "Фильтр списка" : "List filter"}"><span>${this.words === WORDS.ru ? "Фильтр:" : "Filter:"}</span><button id="filter-all"></button><button id="conflict-filter"></button><button id="filter-scope" hidden></button><span id="check-status" role="status"></span></div><div class="tree-layout"><section class="tree-pane"><div id="object-dropdown"><input id="object-search" type="search" aria-label="${w.search}" placeholder="${w.search}" autocomplete="off"><div id="object-list" role="tree" aria-label="${w.choose}"></div></div></section><section class="editor-pane"><label id="object-label">${w.choose}</label><div class="picker"><div class="selected-row"><div id="object" class="object-row" aria-labelledby="object-label"></div><span id="selected-link"></span></div></div><div class="segment-heading"><label for="segment">${w.segment}</label><label id="omit-label"><input id="omit-segment" type="checkbox"><span>${this.words === WORDS.ru ? "Без собственного сегмента ID" : "No own ID segment"}</span></label></div><input id="segment" type="text" autocomplete="off" autocapitalize="none" spellcheck="false"><div class="tools"><button id="clear">${w.clear}</button><button id="reset">${w.reset}</button><button id="bulk-copy"></button></div><div class="editor-details"><p id="target-id"></p><div id="omit-suggestion" hidden><span id="omit-reason"></span> <button id="omit-accept"></button></div><div id="bulk-choice" hidden><p id="bulk-question"></p><button id="bulk-empty"></button><button id="bulk-all"></button><button id="bulk-cancel"></button></div><div id="bulk-result" hidden><span id="bulk-message" role="status"></span><button id="bulk-undo"></button></div><p id="validation" class="error" role="status"></p><div id="conflict-detail" class="error" role="status"></div><button id="conflict-more" hidden></button><button id="copy-id" hidden></button><p id="error" class="error" role="alert"></p></div></section></div><div class="editor-footer"><p id="count" class="count"></p><div class="actions"><button id="cancel">${w.cancel}</button><button id="confirm" class="primary">${w.confirm}</button></div></div></dialog><dialog id="preview-dialog"><div class="heading"><button id="preview-close" aria-label="${w.close}">×</button><h2>${w.preview}</h2></div><p>${w.references}</p><div id="preview-rows"></div><p id="preview-error" class="error" role="alert"></p><div class="actions"><button id="preview-cancel">${w.cancel}</button><button id="preview-apply" class="primary" disabled>${w.apply}</button></div></dialog>`;
     const q = (s) => this.shadowRoot.querySelector(s);
     const menu = q("ha-menu-button");
     if (menu) menu.hass = this._hass;
@@ -683,6 +683,11 @@ export class IDManagerPanel extends (globalThis.HTMLElement || class {}) {
           this.focusTreeRow(row.node.parentKey);
         else this.focusTreeRow(this.treeModel.rows[index + 1]?.key);
       }
+    };
+    q("#omit-accept").onclick = () => {
+      if (!this.omitSuggestion || this.busy) return;
+      this.store.omit(this.selected.entities, true);
+      this.fill();
     };
     q("#omit-segment").onchange = (e) => {
       this.store.omit(this.selected.entities, e.target.checked);
@@ -1248,6 +1253,7 @@ export class IDManagerPanel extends (globalThis.HTMLElement || class {}) {
   refresh({ tree = true } = {}) {
     if (!this.store) return;
     this.scheduleCheck();
+    this.scheduleOmitSuggestion();
     const q = (s) => this.shadowRoot.querySelector(s),
       w = this.words,
       id = this.selected[this.kind];
@@ -1331,6 +1337,10 @@ export class IDManagerPanel extends (globalThis.HTMLElement || class {}) {
     q("#confirm").disabled =
       this.busy || !this.store.valid || !this.store.count;
     q("#confirm").textContent = this.busy ? w.saving : w.confirm;
+    q("#omit-suggestion").hidden = !this.omitSuggestion;
+    q("#omit-reason").textContent = this.words === WORDS.ru ? "Основная сущность устройства." : "Primary device entity.";
+    q("#omit-accept").textContent = this.words === WORDS.ru ? "Убрать собственный сегмент" : "Omit own segment";
+    q("#omit-accept").disabled = this.busy;
     q("#omit-label").hidden = this.kind !== "entities";
     q("#omit-segment").checked = this.kind === "entities" && this.store.value(this.kind, id) === "-";
     q("#omit-segment").disabled = this.busy || !id;
@@ -1469,6 +1479,35 @@ export class IDManagerPanel extends (globalThis.HTMLElement || class {}) {
     }
     return [];
   }
+  scheduleOmitSuggestion() {
+    const store = this.store;
+    const id = this.selected.entities;
+    const object = store?.byId.entities.get(id);
+    if (this.kind !== "entities" || !object?.omit_candidate || !store.valid ||
+        store.value("entities", id) || Object.hasOwn(store.drafts.entities, id)) {
+      clearTimeout(this.omitTimer);
+      this.omitKey = null;
+      this.omitSuggestion = null;
+      return;
+    }
+    const changes = store.changes();
+    const key = JSON.stringify([store.revision, id, changes]);
+    if (key === this.omitKey && this.omitStore === store) return;
+    this.omitKey = key;
+    this.omitStore = store;
+    this.omitSuggestion = null;
+    clearTimeout(this.omitTimer);
+    this.omitTimer = setTimeout(async () => {
+      let result = null;
+      try {
+        result = await this._hass.callWS({type: "entity_id_manager/editor/recommend_omit",
+          revision: store.revision, entity_id: object.entity_id, changes});
+      } catch { /* A suggestion is optional; a failed check must never offer it. */ }
+      if (this.store !== store || this.omitKey !== key) return;
+      this.omitSuggestion = result;
+      this.refresh({tree: false});
+    }, 250);
+  }
   scheduleCheck() {
     if (!this.store?.valid) {
       clearTimeout(this.checkTimer);
@@ -1519,6 +1558,7 @@ export class IDManagerPanel extends (globalThis.HTMLElement || class {}) {
     if (this.busy) return;
     clearTimeout(this.checkTimer);
     clearTimeout(this.searchTimer);
+    clearTimeout(this.omitTimer);
     clearTimeout(this.treeTimer);
     this.virtualTree?.destroy();
     this.virtualTree = null;

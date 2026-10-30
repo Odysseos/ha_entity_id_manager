@@ -100,6 +100,9 @@ def objects(hass, fallbacks=None):
                 "id": obj.id,
                 "name": er.async_get_unprefixed_name(hass, obj) or obj.entity_id,
                 "entity_id": obj.entity_id,
+                "omit_candidate": bool(
+                    obj.device_id and obj.has_entity_name and not obj.original_name
+                ),
                 "default_segments": {
                     "area": slugify(area.name) if area else "",
                     "device": slugify(device.name_by_user or device.name or "device")
@@ -213,6 +216,7 @@ def register(hass):
     websocket_api.async_register_command(hass, websocket_get)
     websocket_api.async_register_command(hass, websocket_save)
     websocket_api.async_register_command(hass, websocket_check)
+    websocket_api.async_register_command(hass, websocket_recommend_omit)
     websocket_api.async_register_command(hass, websocket_preview)
     websocket_api.async_register_command(hass, websocket_apply)
     websocket_api.async_register_command(hass, websocket_automatic)
@@ -333,5 +337,51 @@ async def websocket_check(hass, connection, msg):
         if revision(manager.entry) != msg["revision"]:
             raise EditError("stale_editor", "Saved mappings changed. Reopen the editor.")
         connection.send_result(msg["id"], draft_conflicts(hass, manager, msg["changes"]))
+    except EditError as err:
+        connection.send_error(msg["id"], err.code, str(err))
+
+
+def recommend_omit(hass, manager, entity_id, changes):
+    options = draft_options(hass, manager.entry, changes)
+    entity = er.async_get(hass).async_get(entity_id)
+    if (
+        not entity
+        or entity.platform == DOMAIN
+        or not entity.device_id
+        or not entity.has_entity_name
+        or entity.original_name
+        or entity.id in options.get("entities", {})
+        or entity.id in changes.get("entities", {})
+    ):
+        return None
+    options.setdefault("entities", {})[entity.id] = "-"
+    rows = manager.snapshot(options, persist=False)
+    row = next((row for row in rows if row.registry_id == entity.id), None)
+    if row and row.conflict:
+        return None
+    target = row.new if row else entity.entity_id
+    if any(row.registry_id != entity.id and row.new == target for row in rows):
+        return None
+    return {"target": target}
+
+
+@websocket_api.websocket_command(
+    {
+        "type": f"{DOMAIN}/editor/recommend_omit",
+        vol.Required("revision"): str,
+        vol.Required("entity_id"): str,
+        vol.Required("changes"): dict,
+    }
+)
+@websocket_api.require_admin
+@websocket_api.async_response
+async def websocket_recommend_omit(hass, connection, msg):
+    try:
+        manager = get_manager(hass)
+        if revision(manager.entry) != msg["revision"]:
+            raise EditError("stale_editor", "Mappings changed; reopen the editor")
+        connection.send_result(
+            msg["id"], recommend_omit(hass, manager, msg["entity_id"], msg["changes"])
+        )
     except EditError as err:
         connection.send_error(msg["id"], err.code, str(err))

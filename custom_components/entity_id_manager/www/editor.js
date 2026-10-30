@@ -200,14 +200,21 @@ export class DraftStore {
       (object) => object.id !== id,
     );
   }
+  namesakeTargets(key, id, replace) {
+    const after = this.value(key, id);
+    if (!after || !PART.test(after)) return [];
+    return this.namesakes(key, id).filter((object) => {
+      const before = this.value(key, object.id);
+      return before !== after && (!before || replace);
+    });
+  }
   copyToNamesakes(key, id, replace) {
     const after = this.value(key, id);
     if (!after || !PART.test(after)) return 0;
     const parts = [];
     this.batching++;
-    for (const object of this.namesakes(key, id)) {
+    for (const object of this.namesakeTargets(key, id, replace)) {
       const before = this.value(key, object.id);
-      if (before === after || (before && !replace)) continue;
       this.set(key, object.id, after);
       parts.push({
         id: object.id,
@@ -663,7 +670,7 @@ export class IDManagerPanel extends (globalThis.HTMLElement || class {}) {
         id = this.selected[key],
         value = this.store.value(key, id);
       const different = this.store
-        .namesakes(key, id)
+        .namesakeTargets(key, id, true)
         .filter(
           (object) =>
             this.store.value(key, object.id) &&
@@ -1291,7 +1298,8 @@ export class IDManagerPanel extends (globalThis.HTMLElement || class {}) {
     q("#part").disabled = this.busy || !id;
     q("#object").disabled = this.busy || !id;
     q("#clear").disabled = this.busy || !id || !this.store.value(this.kind, id);
-    const namesakes = this.store.namesakes(this.kind, id);
+    const namesakes = this.store.namesakeTargets(this.kind, id, true);
+    const unsetNamesakes = this.store.namesakeTargets(this.kind, id, false);
     const value = this.store.value(this.kind, id);
     q("#bulk-copy").textContent =
       `${this.words === WORDS.ru ? "Для одноимённых" : "Apply to same name"} (${namesakes.length})`;
@@ -1310,8 +1318,8 @@ export class IDManagerPanel extends (globalThis.HTMLElement || class {}) {
     q("#bulk-question").textContent = ruBulk
       ? "У части одноимённых объектов уже задана другая часть ID. Какие значения заменить?"
       : "Some matching objects already have different ID parts. Which values should be replaced?";
-    q("#bulk-empty").textContent = ruBulk ? "Только незаданные" : "Unset only";
-    q("#bulk-all").textContent = ruBulk ? "Заменить у всех" : "Replace all";
+    q("#bulk-empty").textContent = `${ruBulk ? "Только незаданные" : "Unset only"} (${unsetNamesakes.length})`;
+    q("#bulk-all").textContent = `${ruBulk ? "Заменить у всех" : "Replace all"} (${namesakes.length})`;
     q("#bulk-cancel").textContent = w.cancel;
     q("#bulk-result").hidden = !this.bulkMessage;
     q("#bulk-message").textContent = this.bulkMessage || "";
@@ -1324,6 +1332,8 @@ export class IDManagerPanel extends (globalThis.HTMLElement || class {}) {
       "#bulk-undo",
     ])
       q(selector).disabled = this.busy;
+    q("#bulk-empty").disabled = this.busy || !unsetNamesakes.length;
+    q("#bulk-all").disabled = this.busy || !namesakes.length;
     q("#reset").disabled =
       this.busy || !id || !Object.hasOwn(this.store.drafts[this.kind], id);
     for (const selector of ["#cancel", "#close", "[data-kind]"])

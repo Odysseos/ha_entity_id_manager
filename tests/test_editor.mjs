@@ -173,6 +173,25 @@ assert.equal(bulk.value("devices", "a"), "sensor");
 assert.equal(bulk.value("devices", "d"), "");
 console.log("Namesake bulk drafts and selective undo: passed");
 
+const matching = new DraftStore({
+  revision: "counts",
+  mappings: { areas: {}, devices: { a: "sensor", b: "sensor", c: "other" }, entities: {} },
+  objects: { areas: [], devices: [
+    { id: "a", name: "Сенсор" }, { id: "b", name: "Сенсор" },
+    { id: "c", name: "Сенсор" }, { id: "d", name: "Сенсор" },
+  ], entities: [] },
+});
+assert.equal(matching.namesakeTargets("devices", "a", true).length, 2);
+assert.equal(matching.namesakeTargets("devices", "a", false).length, 1);
+assert.equal(matching.copyToNamesakes("devices", "a", true), 2);
+assert.equal(matching.namesakeTargets("devices", "a", true).length, 0);
+matching.set("devices", "b", "draft");
+assert.equal(matching.namesakeTargets("devices", "a", true).length, 1);
+assert.equal(matching.namesakeTargets("devices", "a", false).length, 0);
+matching.set("devices", "a", "");
+assert.equal(matching.namesakeTargets("devices", "a", true).length, 0);
+console.log("Namesake counts include only effective changes: passed");
+
 const humidity = new DraftStore({
   revision: "h",
   mappings: { areas: {}, devices: {}, entities: {} },

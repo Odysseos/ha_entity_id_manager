@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.7.1
+
+- Count only same-name objects whose ID part would actually change, using current drafts as well as saved values.
+- Show separate counts for unset-only and replace-all operations, and disable operations with no changes.
+- Add model and browser regression checks for bulk-operation counts.
+
 ## 0.7.0
 
 - Update entity references when applying renames: active YAML includes, automation and template blueprints, Jinja files, Lovelace dashboards, integration data/options and subentries.

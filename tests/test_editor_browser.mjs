@@ -92,6 +92,8 @@ try {
   await q("#bulk-copy").click();
   assert.equal(await q("#bulk-choice").isVisible(), true);
   await q("#bulk-all").click();
+  assert.match(await q("#bulk-copy").textContent(), /\(0\)/);
+  assert.equal(await q("#bulk-copy").isDisabled(), true);
   await select("entities", "e2");
   assert.equal(await q("#part").inputValue(), "temperature");
   await q("#bulk-undo").click();

@@ -63,8 +63,9 @@ assert.equal(cancelled.count, 0);
 assert.equal(cancelled.value("areas", "a"), "living_room");
 assert.equal(store.prefix("areas", { id: "a" }), "");
 assert.equal(store.prefix("devices", { area_id: "a" }), "lounge");
-assert.equal(store.prefix("devices", {}), "<area_id>");
-assert.equal(store.prefix("entities", { area_id: "a" }), "lounge/<device_id>");
+assert.equal(store.prefix("devices", {}), "<ID зоны>");
+assert.equal(new DraftStore(snapshot, "en").prefix("devices", {}), "<area ID>");
+assert.equal(store.prefix("entities", { area_id: "a" }), "lounge/<ID устройства>");
 store.set("devices", "d", "radiator");
 assert.equal(
   store.prefix("entities", { area_id: "a", device_id: "d" }),
@@ -73,12 +74,12 @@ assert.equal(
 store.set("areas", "a", "");
 assert.equal(
   store.prefix("entities", { area_id: "a", device_id: "d" }),
-  "<area_id>/radiator",
+  "<ID зоны>/radiator",
 );
 assert.deepEqual(
   store.parentSegments("entities", { area_id: "a", device_id: "d" }),
   [
-    { value: "<area_id>", kind: "added" },
+    { value: "<ID зоны>", kind: "added" },
     { value: "radiator", kind: "added" },
   ],
 );

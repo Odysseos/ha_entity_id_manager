@@ -82,6 +82,7 @@ try {
   assert.equal(await q("#omit-segment").isChecked(), false);
   await q("#omit-accept").click();
   assert.equal(await q("#omit-segment").isChecked(), true);
+  assert.equal(await q("#object .object-own .id-chip").textContent(), "<без сегмента>");
   assert.equal(await q("#omit-suggestion").isVisible(), false);
   assert.equal(await page.evaluate(() => window.test.snapshot.mappings.entities.e), undefined);
   await q("#reset").click();

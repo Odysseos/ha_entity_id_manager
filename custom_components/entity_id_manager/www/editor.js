@@ -112,7 +112,8 @@ Object.assign(WORDS.en, {
 });
 
 export class DraftStore {
-  constructor(snapshot) {
+  constructor(snapshot, language = "ru") {
+    this.language = language;
     this.listeners = new Set();
     this.batching = 0;
     this.revision = snapshot.revision;
@@ -190,9 +191,9 @@ export class DraftStore {
   }
   parentSegments(key, object) {
     if (key === "areas") return [];
-    const segments = [["areas", object.area_id, "<area_id>"]];
+    const segments = [["areas", object.area_id, this.language === "ru" ? "<ID зоны>" : "<area ID>"]];
     if (key === "entities")
-      segments.push(["devices", object.device_id, "<device_id>"]);
+      segments.push(["devices", object.device_id, this.language === "ru" ? "<ID устройства>" : "<device ID>"]);
     return segments.map(([section, id, placeholder]) => ({
       value: this.value(section, id) || placeholder,
       kind: Object.hasOwn(this.drafts[section], id) ? "added" : "prefix",
@@ -940,7 +941,7 @@ export class IDManagerPanel extends (globalThis.HTMLElement || class {}) {
         type: "entity_id_manager/editor/get",
       });
       if (!this.isConnected) return;
-      this.store = new DraftStore(snapshot);
+      this.store = new DraftStore(snapshot, this.words === WORDS.ru ? "ru" : "en");
       this.bulkPending = null;
       this.bulkMessage = "";
       this.bulkSource = null;
@@ -1119,7 +1120,7 @@ export class IDManagerPanel extends (globalThis.HTMLElement || class {}) {
     for (const segment of this.store.segments(this.kind, object.id)) {
       const chip = document.createElement("span");
       chip.className = `id-chip ${segment.kind}`;
-      chip.textContent = segment.value === "-" ? (this.words === WORDS.ru ? "Без сегмента" : "No segment") : segment.value;
+      chip.textContent = segment.value === "-" ? (this.words === WORDS.ru ? "<без сегмента>" : "<no segment>") : segment.value;
       ownRow.append(chip);
     }
   }

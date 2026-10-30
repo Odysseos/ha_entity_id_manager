@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.10.1
+
+- Display special ID values in angle brackets: omitted segments and localized area/device ID placeholders.
+- Use uppercase ID consistently in interface labels.
+
 ## 0.10.0
 
 - Suggest omitting the own ID segment for primary device entities marked with has_entity_name and no original_name.

@@ -242,8 +242,8 @@ async def apply_preview(manager, rows):
             raise EditError("invalid_changes", "Duplicate preview row")
         ids.add(row["registry_id"])
         selected.append(Rename(**row))
-    await manager.apply(selected)
-    return {"count": len(selected)}
+    references = await manager.apply(selected)
+    return {"count": len(selected), "references": references}
 
 
 @websocket_api.websocket_command({"type": f"{DOMAIN}/apply", vol.Required("rows"): [dict]})

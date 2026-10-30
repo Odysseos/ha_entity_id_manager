@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.7.0
+
+- Update entity references when applying renames: active YAML includes, automation and template blueprints, Jinja files, Lovelace dashboards, integration data/options and subentries.
+- Update area sensor selections, person device trackers and energy preferences through Home Assistant APIs.
+- Preserve YAML formatting and object identities, check configuration before renaming, and reload affected configuration.
+- Back up changed configuration and roll back renames and reference updates on failure; report components requiring a restart.
+- Add reference replacement, transaction rollback and real automation/script reload tests.
+
 ## 0.6.2
 
 - Separate the DOM-free tree model from the virtual viewport renderer.

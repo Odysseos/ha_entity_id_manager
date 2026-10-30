@@ -556,3 +556,249 @@ async def test_draft_conflicts_do_not_save(ctx):
     issues = draft_conflicts(hass, manager, {"entities": {entity.id: "test"}})
     assert set(issues) == {entity.id, other.id}
     await hass.async_stop()
+
+
+@pytest.mark.asyncio
+async def test_reference_transaction_yaml_dashboard_helpers_and_backup(ctx, monkeypatch):
+    import json
+    from pathlib import Path
+    from types import SimpleNamespace
+    from unittest.mock import AsyncMock
+
+    from homeassistant.components.lovelace.const import LOVELACE_DATA
+    from homeassistant.components.lovelace.dashboard import LovelaceStorage
+    from homeassistant.config_entries import ConfigSubentry
+
+    hass, entry, area, device, entity = await ctx()
+    manager = Manager(hass, entry)
+    row = manager.snapshot()[0]
+    root = Path(hass.config.config_dir)
+    (root / "configuration.yaml").write_text(
+        "automation: !include automations.yaml\nscript: !include scripts.yaml\n"
+    )
+    automation = f"- id: example\n  alias: Example\n  triggers: []\n  actions:\n    - target:\n        entity_id: {row.old}\n"
+    (root / "automations.yaml").write_text(automation)
+    script = f"example:\n  sequence:\n    - variables:\n        value: \"{{{{ states('{row.old}') }}}}\"\n"
+    (root / "scripts.yaml").write_text(script)
+    dashboard = LovelaceStorage(hass, None)
+    panel = {"views": [{"cards": [{"type": "entity", "entity": row.old}]}]}
+    await dashboard.async_save(panel)
+    hass.data[LOVELACE_DATA] = SimpleNamespace(dashboards={None: dashboard})
+    helper = ConfigEntry(
+        version=1,
+        minor_version=1,
+        domain="demo",
+        title="Helper",
+        data={"source_entity": row.old, "unique_id": row.old},
+        options={"entity_id": row.old},
+        source="user",
+        unique_id="helper",
+        discovery_keys={},
+        subentries_data=[],
+    )
+    hass.config_entries._entries[helper.entry_id] = helper
+    subentry = ConfigSubentry(
+        data={"entity_id": row.old},
+        subentry_id="sub",
+        subentry_type="helper",
+        title="Sub",
+        unique_id="sub",
+    )
+    hass.config_entries.async_add_subentry(helper, subentry)
+    check = AsyncMock(return_value=None)
+    monkeypatch.setattr("homeassistant.config.async_check_ha_config_file", check)
+    reloads = []
+
+    async def reload_yaml(call):
+        reloads.append(call)
+
+    hass.services.async_register("homeassistant", "reload_all", reload_yaml)
+    result = await manager.apply([row])
+    assert row.new in (root / "automations.yaml").read_text()
+    assert row.new in (root / "scripts.yaml").read_text()
+    assert (await dashboard.async_load(False))["views"][0]["cards"][0]["entity"] == row.new
+    assert helper.data["source_entity"] == row.new and helper.data["unique_id"] == row.old
+    assert helper.options["entity_id"] == row.new
+    assert helper.subentries["sub"].data["entity_id"] == row.new
+    assert len(reloads) == 1
+    assert check.await_count == 1
+    backup = root / result["backup"]
+    manifest = json.loads((backup / "manifest.json").read_text())
+    assert manifest["state"] == "committed"
+    assert (backup / "file-0").stat().st_mode & 0o777 == 0o600
+    assert result["files"] == 2 and result["dashboards"] == 1 and result["entries"] == 1
+    await hass.async_stop()
+
+
+@pytest.mark.asyncio
+async def test_reference_reload_failure_rolls_back_everything(ctx, monkeypatch):
+    from pathlib import Path
+    from types import SimpleNamespace
+    from unittest.mock import AsyncMock
+
+    from homeassistant.components.lovelace.const import LOVELACE_DATA
+    from homeassistant.components.lovelace.dashboard import LovelaceStorage
+
+    hass, entry, area, device, entity = await ctx()
+    manager = Manager(hass, entry)
+    row = manager.snapshot()[0]
+    root = Path(hass.config.config_dir)
+    original = f"homeassistant:\n  customize:\n    {row.old}:\n      icon: mdi:water\n"
+    (root / "configuration.yaml").write_text(original)
+    dashboard = LovelaceStorage(hass, None)
+    panel = {"views": [{"cards": [{"entity": row.old}]}]}
+    await dashboard.async_save(panel)
+    hass.data[LOVELACE_DATA] = SimpleNamespace(dashboards={None: dashboard})
+    monkeypatch.setattr(
+        "homeassistant.config.async_check_ha_config_file", AsyncMock(return_value=None)
+    )
+    attempts = 0
+
+    async def reload_yaml(call):
+        nonlocal attempts
+        attempts += 1
+        if attempts == 1:
+            raise HomeAssistantError("Reload failed")
+
+    hass.services.async_register("homeassistant", "reload_all", reload_yaml)
+    with pytest.raises(HomeAssistantError, match="Rollback"):
+        await manager.apply([row])
+    assert (root / "configuration.yaml").read_text() == original
+    assert await dashboard.async_load(False) == panel
+    assert er.async_get(hass).async_get(row.old)
+    assert not er.async_get(hass).async_get(row.new)
+    assert attempts == 2
+    await hass.async_stop()
+
+
+@pytest.mark.asyncio
+async def test_invalid_reference_configuration_does_not_rename(ctx, monkeypatch):
+    from pathlib import Path
+    from unittest.mock import AsyncMock
+
+    hass, entry, area, device, entity = await ctx()
+    manager = Manager(hass, entry)
+    row = manager.snapshot()[0]
+    root = Path(hass.config.config_dir)
+    original = f"group:\n  example:\n    entities: [{row.old}]\n"
+    (root / "configuration.yaml").write_text(original)
+    monkeypatch.setattr(
+        "homeassistant.config.async_check_ha_config_file", AsyncMock(return_value="invalid config")
+    )
+    with pytest.raises(HomeAssistantError, match="invalid config"):
+        await manager.apply([row])
+    assert (root / "configuration.yaml").read_text() == original
+    assert er.async_get(hass).async_get(row.old)
+    await hass.async_stop()
+
+
+@pytest.mark.asyncio
+async def test_real_automation_and_script_reference_reload(ctx):
+    from pathlib import Path
+
+    from homeassistant import loader
+    from homeassistant.config import async_hass_config_yaml
+    from homeassistant.core import CoreState
+    from homeassistant.helpers import condition, trigger
+    from homeassistant.setup import async_setup_component
+
+    hass, entry, area, device, entity = await ctx()
+    hass.config.skip_pip = True
+    loader.async_setup(hass)
+    await condition.async_setup(hass)
+    await trigger.async_setup(hass)
+    hass.state = CoreState.running
+    manager = Manager(hass, entry)
+    row = manager.snapshot()[0]
+    root = Path(hass.config.config_dir)
+    source = f"""script:
+  reference_script:
+    sequence:
+      - event: reference_script_ran
+        event_data:
+          value: "{{{{ states('{row.old}') }}}}"
+automation:
+  - id: reference_automation
+    alias: Reference automation
+    triggers:
+      - trigger: state
+        entity_id: {row.old}
+        to: 'on'
+    actions:
+      - event: reference_automation_ran
+"""
+    (root / "configuration.yaml").write_text(source)
+    config = await async_hass_config_yaml(hass)
+    assert await async_setup_component(hass, "script", config)
+    assert await async_setup_component(hass, "automation", config)
+
+    async def reload_config(call):
+        await hass.services.async_call("script", "reload", blocking=True)
+        await hass.services.async_call("automation", "reload", blocking=True)
+
+    hass.services.async_register("homeassistant", "reload_all", reload_config)
+    script_events, automation_events = [], []
+    hass.bus.async_listen("reference_script_ran", lambda event: script_events.append(event.data))
+    hass.bus.async_listen(
+        "reference_automation_ran", lambda event: automation_events.append(event.data)
+    )
+    await manager.apply([row])
+    hass.states.async_set(row.new, "off")
+    await hass.async_block_till_done()
+    hass.states.async_set(row.new, "on")
+    await hass.async_block_till_done()
+    await hass.services.async_call("script", "reference_script", blocking=True)
+    await hass.async_block_till_done()
+    assert script_events[-1]["value"] == "on"
+    assert automation_events
+    assert row.old not in (root / "configuration.yaml").read_text()
+    await hass.async_stop()
+
+
+@pytest.mark.asyncio
+async def test_runtime_area_person_energy_references_and_rollback(ctx):
+    import logging
+
+    from homeassistant.components.energy.data import async_get_manager
+    from homeassistant.components.person import PersonStorageCollection
+    from homeassistant.helpers import collection
+    from homeassistant.helpers.storage import Store
+
+    from custom_components.entity_id_manager.references import ReferenceUpdate
+
+    hass, entry, area, device, entity = await ctx()
+    old, new = "sensor.old_temperature", "sensor.new_temperature"
+    hass.states.async_set(old, "21", {"device_class": "temperature"})
+    ar.async_get(hass).async_update(area.id, temperature_entity_id=old)
+    people = PersonStorageCollection(
+        Store(hass, 1, "person"),
+        collection.IDManager(),
+        collection.YamlCollection(logging.getLogger(__name__)),
+    )
+    person = await people.async_create_item(
+        {"name": "Example", "device_trackers": ["device_tracker.old"]}
+    )
+    hass.data["person"] = (None, people)
+    hass.config.components.add("energy")
+    energy = await async_get_manager(hass)
+    await energy.async_update({"device_consumption": [{"stat_consumption": old}]})
+    update = await ReferenceUpdate(
+        hass, {old: new, "device_tracker.old": "device_tracker.new"}
+    ).prepare()
+    assert len(update.runtime) == 3
+    await update.stage_files()
+    # A real platform publishes the renamed state after the registry event.
+    import asyncio
+
+    applying = hass.async_create_task(update.apply())
+    await asyncio.sleep(0)
+    hass.states.async_set(new, "21", {"device_class": "temperature"})
+    await applying
+    assert ar.async_get(hass).async_get_area(area.id).temperature_entity_id == new
+    assert people.data[person["id"]]["device_trackers"] == ["device_tracker.new"]
+    assert energy.data["device_consumption"][0]["stat_consumption"] == new
+    assert await update.rollback() == []
+    assert ar.async_get(hass).async_get_area(area.id).temperature_entity_id == old
+    assert people.data[person["id"]]["device_trackers"] == ["device_tracker.old"]
+    assert energy.data["device_consumption"][0]["stat_consumption"] == old
+    await hass.async_stop()

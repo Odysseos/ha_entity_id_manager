@@ -48,14 +48,14 @@
       },
       "preview": {
         "title": "Select renames",
-        "description": "References in YAML, automations and dashboards are not updated. Conflicts (cannot be selected):\n{conflicts}",
+        "description": "Entity references in configuration and dashboards are updated with a backup. Conflicts (cannot be selected):\n{conflicts}",
         "data": {
           "selected": "Changes to apply"
         }
       },
       "automatic": {
         "title": "New entities",
-        "description": "Rename newly registered entities using saved rules. Existing entities and references are not updated.",
+        "description": "Rename newly registered entities using saved rules. Existing entities are not renamed; references to newly renamed entities are updated.",
         "data": {
           "auto_new": "Automatically rename new entities"
         }

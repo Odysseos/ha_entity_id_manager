@@ -70,7 +70,7 @@ Object.assign(WORDS.ru, {
   apply: "Применить выбранные",
   automatic: "Автоматически переименовывать новые сущности",
   noChanges: "Нет сущностей, требующих переименования.",
-  references: "Ссылки в YAML, автоматизациях и панелях не обновляются.",
+  references: "При применении обновляются ссылки в подключённых YAML-файлах, шаблонах, панелях и настройках интеграций. Перед изменениями создаётся резервная копия.",
   applied: "Переименовано сущностей",
   previewError:
     "Не удалось применить изменения. Откройте предпросмотр заново и проверьте журнал HA.",
@@ -82,7 +82,7 @@ Object.assign(WORDS.en, {
   apply: "Apply selected",
   automatic: "Automatically rename new entities",
   noChanges: "No entities need renaming.",
-  references: "References in YAML, automations and dashboards are not updated.",
+  references: "Applying updates references in included YAML, templates, dashboards and integration settings. A backup is created first.",
   applied: "Entities renamed",
   previewError: "Could not apply changes. Reopen preview and check the HA log.",
   occupied: "ID is occupied",
@@ -862,7 +862,15 @@ export class IDManagerPanel extends (globalThis.HTMLElement || class {}) {
       });
       this.previewBusy = false;
       this.closePreview();
-      q("#status").textContent = `${this.words.applied}: ${result.count}`;
+      const report = result.references;
+      const ru = this.words === WORDS.ru;
+      const lines = [`${this.words.applied}: ${result.count}`];
+      if (report) {
+        lines.push(`${ru ? "Обновлено ссылок" : "References updated"}: ${report.references}`);
+        if (report.backup) lines.push(`${ru ? "Резервная копия" : "Backup"}: ${report.backup}`);
+        if (report.restart_required?.length) lines.push(`${ru ? "Для применения настроек нужен перезапуск HA" : "Restart HA to apply settings"}: ${report.restart_required.join(", ")}`);
+      }
+      q("#status").textContent = lines.join("\n");
     } catch (error) {
       q("#preview-error").textContent =
         `${this.words.previewError} ${error.message || ""}`;

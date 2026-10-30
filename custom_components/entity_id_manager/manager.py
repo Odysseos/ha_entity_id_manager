@@ -13,6 +13,7 @@ from homeassistant.util import slugify
 
 from .const import DOMAIN
 from .naming import Rename, target_id
+from .references import ReferenceUpdate
 
 
 class Manager:
@@ -99,21 +100,38 @@ class Manager:
                     raise HomeAssistantError(
                         "Preview is stale or contains conflicts. Open a new preview."
                     )
+            references = await ReferenceUpdate(
+                self.hass, {row.old: row.new for row in selected}
+            ).prepare()
             applied = []
             try:
+                await references.stage_files()
+                current = {row.registry_id: row for row in self.snapshot()}
+                if any(current.get(row.registry_id) != row or row.conflict for row in selected):
+                    raise HomeAssistantError(
+                        "Registry or mappings changed during reference preparation"
+                    )
                 for row in selected:
                     registry.async_update_entity(row.old, new_entity_id=row.new)
                     applied.append(row)
-            except Exception as err:
+                return await references.apply()
+            except (Exception, asyncio.CancelledError) as err:
                 rollback_errors = []
                 for row in reversed(applied):
                     try:
                         registry.async_update_entity(row.new, new_entity_id=row.old)
                     except Exception:
                         rollback_errors.append(row.new)
+                try:
+                    rollback_errors.extend(await references.rollback())
+                except Exception as rollback_error:
+                    rollback_errors.append(f"reference rollback: {rollback_error}")
+                if isinstance(err, asyncio.CancelledError):
+                    raise
                 raise HomeAssistantError(
-                    "Rename failed; rollback attempted. Unrestored IDs: "
-                    + ", ".join(rollback_errors)
+                    f"Rename/reference update failed: {err}. Rollback attempted. "
+                    f"Unrestored items: {', '.join(rollback_errors) or 'none'}. "
+                    f"Backup: {references.backup or 'not created'}"
                 ) from err
 
     def start(self):

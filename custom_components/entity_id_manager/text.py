@@ -46,6 +46,8 @@ class IDPart(TextEntity):
     def __init__(self, entry, key, object_id):
         self.entry = entry
         self.key = key
+        if key == "entities":
+            self._attr_pattern = r"(?:[a-z][a-z0-9_]*|-)?"
         self.object_id = object_id
         self._attr_unique_id = f"{entry.entry_id}_{key}_{object_id}"
         self._attr_translation_key = KINDS[key]
@@ -86,7 +88,7 @@ class IDPart(TextEntity):
         )
 
     async def async_set_value(self, value):
-        part = validate_part(value)
+        part = "-" if self.key == "entities" and value == "-" else validate_part(value)
         options = deepcopy(dict(self.entry.options))
         values = options.setdefault(self.key, {})
         if part:

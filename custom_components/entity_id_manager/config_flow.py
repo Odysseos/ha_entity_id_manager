@@ -92,7 +92,8 @@ class OptionsFlow(config_entries.OptionsFlow):
         errors = {}
         if user_input is not None:
             try:
-                part = validate_part(user_input.get("part", ""))
+                value = user_input.get("part", "")
+                part = "-" if key == "entities" and value == "-" else validate_part(value)
             except ValueError:
                 errors["part"] = "invalid_part"
             else:

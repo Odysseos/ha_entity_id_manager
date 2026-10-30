@@ -640,6 +640,39 @@ async def test_reference_transaction_yaml_dashboard_helpers_and_backup(ctx, monk
 
 
 @pytest.mark.asyncio
+async def test_omitted_entity_suffix_saved_and_conflict_checked(ctx):
+    from homeassistant import loader
+    from homeassistant.helpers import frame
+
+    from custom_components.entity_id_manager.editor import EditError, draft_options
+
+    hass, entry, area, device, entity = await ctx()
+    loader.async_setup(hass)
+    frame.async_setup(hass)
+    options = draft_options(hass, entry, {"entities": {entity.id: "-"}})
+    hass.config_entries.async_update_entry(entry, options=options)
+    manager = Manager(hass, entry)
+    row = manager.snapshot()[0]
+    assert row.new == "binary_sensor.bathroom_neptun" and not row.conflict
+    await manager.apply([row])
+    assert manager.snapshot() == []
+    duplicate = er.async_get(hass).async_get_or_create(
+        "binary_sensor", "demo", "other_leak", device_id=device.id, original_name="Other leak"
+    )
+    options = draft_options(hass, entry, {"entities": {duplicate.id: "-"}})
+    hass.config_entries.async_update_entry(entry, options=options)
+    assert manager.snapshot()[0].conflict == "occupied"
+    with pytest.raises(EditError):
+        draft_options(hass, entry, {"devices": {device.id: "-"}})
+    assert target_id("switch", "bathroom", "neptun", "-") == "switch.bathroom_neptun"
+    with pytest.raises(ValueError):
+        target_id("sensor", "", "", "-")
+    options = draft_options(hass, entry, {"entities": {entity.id: ""}})
+    assert entity.id not in options["entities"]
+    await hass.async_stop()
+
+
+@pytest.mark.asyncio
 async def test_reference_reload_failure_rolls_back_everything(ctx, monkeypatch):
     from pathlib import Path
     from types import SimpleNamespace

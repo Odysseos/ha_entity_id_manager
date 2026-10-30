@@ -22,8 +22,9 @@ class Rename:
 
 
 def target_id(domain, area, device, suffix):
-    parts = [part for part in (area, device, suffix) if part]
-    if not parts or not suffix:
+    omit = suffix == "-"
+    parts = [part for part in (area, device, "" if omit else suffix) if part]
+    if not parts or (not suffix and not omit):
         raise ValueError("A suffix is required")
     for part in parts:
         validate_part(part)

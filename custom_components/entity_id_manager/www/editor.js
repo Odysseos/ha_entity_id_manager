@@ -118,6 +118,7 @@ export class DraftStore {
     this.revision = snapshot.revision;
     this.versions = {};
     this.bulkUndo = null;
+    this.omittedValues = new Map();
     this.objects = structuredClone(snapshot.objects);
     this.treeDirty = new Set();
     this.byId = {};
@@ -153,6 +154,12 @@ export class DraftStore {
     else this.drafts[key][id] = next;
     this.emit();
   }
+  omit(id, enabled) {
+    if (enabled) {
+      this.omittedValues.set(id, this.value("entities", id));
+      this.set("entities", id, "-");
+    } else this.set("entities", id, this.omittedValues.get(id) || "");
+  }
   subscribe(listener) {
     this.listeners.add(listener);
     return () => this.listeners.delete(listener);
@@ -168,7 +175,7 @@ export class DraftStore {
   }
   get valid() {
     return KEYS.every((k) =>
-      Object.values(this.drafts[k]).every((v) => !v || PART.test(v)),
+      Object.values(this.drafts[k]).every((v) => !v || (k === "entities" && v === "-") || PART.test(v)),
     );
   }
   segments(key, id) {
@@ -205,9 +212,19 @@ export class DraftStore {
       (object) => object.id !== id,
     );
   }
+  entityTarget(entity) {
+    if (!entity?.default_parts || !entity.entity_id) return "";
+    const defaults = entity.default_parts;
+    const suffix = this.value("entities", entity.id) || defaults.suffix;
+    return entity.entity_id.split(".", 1)[0] + "." + [
+      this.value("areas", entity.area_id) || defaults.area,
+      this.value("devices", entity.device_id) || defaults.device,
+      suffix === "-" ? "" : suffix,
+    ].filter(Boolean).join("_");
+  }
   namesakeTargets(key, id, replace) {
     const after = this.value(key, id);
-    if (!after || !PART.test(after)) return [];
+    if (!after || !(PART.test(after) || (key === "entities" && after === "-"))) return [];
     return this.namesakes(key, id).filter((object) => {
       const before = this.value(key, object.id);
       if (before === after || (before && !replace)) return false;
@@ -219,14 +236,14 @@ export class DraftStore {
         const area = this.value("areas", entity.area_id) || defaults.area;
         const device = key === "devices" ? after : this.value("devices", entity.device_id) || defaults.device;
         const suffix = key === "entities" ? after : this.value("entities", entity.id) || defaults.suffix;
-        const target = entity.entity_id.split(".", 1)[0] + "." + [area, device, suffix].filter(Boolean).join("_");
+        const target = entity.entity_id.split(".", 1)[0] + "." + [area, device, suffix === "-" ? "" : suffix].filter(Boolean).join("_");
         return target !== entity.entity_id;
       });
     });
   }
   copyToNamesakes(key, id, replace) {
     const after = this.value(key, id);
-    if (!after || !PART.test(after)) return 0;
+    if (!after || !(PART.test(after) || (key === "entities" && after === "-"))) return 0;
     const parts = [];
     this.batching++;
     for (const object of this.namesakeTargets(key, id, replace)) {
@@ -603,7 +620,7 @@ export class IDManagerPanel extends (globalThis.HTMLElement || class {}) {
       #editor-dialog .picker,#editor-dialog .selected-row{height:100%;min-height:0}#editor-dialog #object{box-sizing:border-box;height:100%;padding:3px 12px;grid-template-rows:20px 20px 16px;align-content:center;row-gap:0}
       #editor-dialog #object.area-row{grid-template-rows:1fr}#editor-dialog #object .object-name,#editor-dialog #object .object-description,#editor-dialog #object .object-current-id{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
       #editor-dialog #object .object-prefix,#editor-dialog #object .object-own{flex-wrap:nowrap;overflow:hidden}#editor-dialog #object .id-chip{white-space:nowrap;flex-shrink:0}#editor-dialog #object .id-chip.prefix{flex-wrap:nowrap}
-      #editor-dialog #part{height:48px;padding:12px}#editor-dialog .tools{margin:0;flex-wrap:nowrap;align-items:center;overflow-x:auto;min-width:0}#editor-dialog .tools button{white-space:nowrap;flex-shrink:0}#bulk-choice,#bulk-result{font-size:.85em}#bulk-choice button,#bulk-result button{padding:4px 10px}#editor-dialog .tools button{padding:6px 12px}
+      #omit-label{display:flex;align-items:center;white-space:nowrap;font-size:.85em;gap:6px}#omit-part{width:18px;height:18px;margin:0;padding:0}#editor-dialog #part{height:48px;padding:12px}#editor-dialog .tools{margin:0;flex-wrap:nowrap;align-items:center;overflow-x:auto;min-width:0}#editor-dialog .tools button{white-space:nowrap;flex-shrink:0}#bulk-choice,#bulk-result{font-size:.85em}#bulk-choice button,#bulk-result button{padding:4px 10px}#editor-dialog .tools button{padding:6px 12px}
       .editor-details{min-height:0;overflow:auto;overscroll-behavior:contain;padding:2px 0}.editor-details p{margin:4px 0}.editor-details #conflict-detail{max-height:180px}.editor-footer{display:flex;align-items:center;justify-content:space-between;gap:8px;min-width:0}.editor-footer .count{margin:0}.editor-footer .actions{margin:0;gap:8px}
       @media(max-width:600px),(max-height:700px){#editor-dialog{width:calc(100vw - 16px);height:calc(100dvh - 16px);padding:12px;border-radius:18px}.editor-footer{font-size:.85em}.editor-footer .actions button{padding:10px}.editor-footer .count{max-width:45%}}
       @media(max-height:550px){#editor-dialog[open]{grid-template-rows:28px 32px 40px 16px 80px 16px 40px 30px minmax(0,1fr) 48px;gap:2px}#editor-dialog #object{padding:2px 12px}#editor-dialog #part{height:40px}}
@@ -615,7 +632,7 @@ export class IDManagerPanel extends (globalThis.HTMLElement || class {}) {
       @media(max-width:700px){#editor-dialog .object-filters{flex-wrap:nowrap;align-content:normal;overflow-x:auto;white-space:nowrap}#editor-dialog .object-filters > *{flex-shrink:0}#editor-dialog[open]{grid-template-rows:32px 40px minmax(0,1fr) 56px}.tree-layout{grid-template-columns:1fr;grid-template-rows:minmax(100px,1fr) minmax(220px,1fr);gap:8px}.editor-pane{grid-template-rows:16px 66px 16px 40px 30px minmax(0,1fr)}#editor-dialog #part{height:40px}.editor-pane .tools{font-size:.8em}.tree-select .object-description,.tree-select .object-current-id{display:none}}
       .virtual-tree-surface{position:relative;width:100%;contain:layout style}.virtual-tree-item{position:absolute;inset-inline:0;overflow:hidden;box-sizing:border-box}.virtual-tree-item > .tree-line{height:100%;content-visibility:visible;contain-intrinsic-size:none}.virtual-tree-item .tree-select{height:100%;box-sizing:border-box;align-content:center;overflow:hidden}.virtual-tree-item .object-own{flex-wrap:nowrap;overflow:hidden}.virtual-tree-item .id-chip{flex-shrink:0}#object-list{padding:0;position:relative;overflow-anchor:none}
     </style><header><ha-menu-button></ha-menu-button><h1>Entity ID Manager</h1></header><main><h2>${w.title}</h2><p>${w.intro}</p><div class="main-actions"><button id="open" class="primary">${w.open}</button><button id="preview-open" class="primary">${w.preview}</button></div><label class="automatic"><input id="automatic" type="checkbox" disabled> ${w.automatic}</label><p id="status" role="status"></p></main>
-    <dialog id="editor-dialog"><div class="heading"><button id="close" aria-label="${w.close}">×</button><h2>${w.title}</h2></div><div class="object-filters" role="group" aria-label="${this.words === WORDS.ru ? "Фильтр списка" : "List filter"}"><span>${this.words === WORDS.ru ? "Фильтр:" : "Filter:"}</span><button id="filter-all"></button><button id="conflict-filter"></button><button id="filter-scope" hidden></button><span id="check-status" role="status"></span></div><div class="tree-layout"><section class="tree-pane"><div id="object-dropdown"><input id="object-search" type="search" aria-label="${w.search}" placeholder="${w.search}" autocomplete="off"><div id="object-list" role="tree" aria-label="${w.choose}"></div></div></section><section class="editor-pane"><label id="object-label">${w.choose}</label><div class="picker"><div class="selected-row"><div id="object" class="object-row" aria-labelledby="object-label"></div><span id="selected-link"></span></div></div><label for="part">${w.part}</label><input id="part" type="text" autocomplete="off" autocapitalize="none" spellcheck="false"><div class="tools"><button id="clear">${w.clear}</button><button id="reset">${w.reset}</button><button id="bulk-copy"></button></div><div class="editor-details"><div id="bulk-choice" hidden><p id="bulk-question"></p><button id="bulk-empty"></button><button id="bulk-all"></button><button id="bulk-cancel"></button></div><div id="bulk-result" hidden><span id="bulk-message" role="status"></span><button id="bulk-undo"></button></div><p id="validation" class="error" role="status"></p><div id="conflict-detail" class="error" role="status"></div><button id="conflict-more" hidden></button><button id="copy-id" hidden></button><p id="error" class="error" role="alert"></p></div></section></div><div class="editor-footer"><p id="count" class="count"></p><div class="actions"><button id="cancel">${w.cancel}</button><button id="confirm" class="primary">${w.confirm}</button></div></div></dialog><dialog id="preview-dialog"><div class="heading"><button id="preview-close" aria-label="${w.close}">×</button><h2>${w.preview}</h2></div><p>${w.references}</p><div id="preview-rows"></div><p id="preview-error" class="error" role="alert"></p><div class="actions"><button id="preview-cancel">${w.cancel}</button><button id="preview-apply" class="primary" disabled>${w.apply}</button></div></dialog>`;
+    <dialog id="editor-dialog"><div class="heading"><button id="close" aria-label="${w.close}">×</button><h2>${w.title}</h2></div><div class="object-filters" role="group" aria-label="${this.words === WORDS.ru ? "Фильтр списка" : "List filter"}"><span>${this.words === WORDS.ru ? "Фильтр:" : "Filter:"}</span><button id="filter-all"></button><button id="conflict-filter"></button><button id="filter-scope" hidden></button><span id="check-status" role="status"></span></div><div class="tree-layout"><section class="tree-pane"><div id="object-dropdown"><input id="object-search" type="search" aria-label="${w.search}" placeholder="${w.search}" autocomplete="off"><div id="object-list" role="tree" aria-label="${w.choose}"></div></div></section><section class="editor-pane"><label id="object-label">${w.choose}</label><div class="picker"><div class="selected-row"><div id="object" class="object-row" aria-labelledby="object-label"></div><span id="selected-link"></span></div></div><label for="part">${w.part}</label><input id="part" type="text" autocomplete="off" autocapitalize="none" spellcheck="false"><div class="tools"><label id="omit-label"><input id="omit-part" type="checkbox">${this.words === WORDS.ru ? "Без собственной части" : "No own ID part"}</label><button id="clear">${w.clear}</button><button id="reset">${w.reset}</button><button id="bulk-copy"></button></div><div class="editor-details"><p id="target-id"></p><div id="bulk-choice" hidden><p id="bulk-question"></p><button id="bulk-empty"></button><button id="bulk-all"></button><button id="bulk-cancel"></button></div><div id="bulk-result" hidden><span id="bulk-message" role="status"></span><button id="bulk-undo"></button></div><p id="validation" class="error" role="status"></p><div id="conflict-detail" class="error" role="status"></div><button id="conflict-more" hidden></button><button id="copy-id" hidden></button><p id="error" class="error" role="alert"></p></div></section></div><div class="editor-footer"><p id="count" class="count"></p><div class="actions"><button id="cancel">${w.cancel}</button><button id="confirm" class="primary">${w.confirm}</button></div></div></dialog><dialog id="preview-dialog"><div class="heading"><button id="preview-close" aria-label="${w.close}">×</button><h2>${w.preview}</h2></div><p>${w.references}</p><div id="preview-rows"></div><p id="preview-error" class="error" role="alert"></p><div class="actions"><button id="preview-cancel">${w.cancel}</button><button id="preview-apply" class="primary" disabled>${w.apply}</button></div></dialog>`;
     const q = (s) => this.shadowRoot.querySelector(s);
     const menu = q("ha-menu-button");
     if (menu) menu.hass = this._hass;
@@ -666,6 +683,10 @@ export class IDManagerPanel extends (globalThis.HTMLElement || class {}) {
           this.focusTreeRow(row.node.parentKey);
         else this.focusTreeRow(this.treeModel.rows[index + 1]?.key);
       }
+    };
+    q("#omit-part").onchange = (e) => {
+      this.store.omit(this.selected.entities, e.target.checked);
+      this.fill();
     };
     q("#part").oninput = (e) => {
       this.store.set(this.kind, this.selected[this.kind], e.target.value);
@@ -1093,7 +1114,7 @@ export class IDManagerPanel extends (globalThis.HTMLElement || class {}) {
     for (const segment of this.store.segments(this.kind, object.id)) {
       const chip = document.createElement("span");
       chip.className = `id-chip ${segment.kind}`;
-      chip.textContent = segment.value;
+      chip.textContent = segment.value === "-" ? (this.words === WORDS.ru ? "Без части" : "No part") : segment.value;
       ownRow.append(chip);
     }
   }
@@ -1220,10 +1241,8 @@ export class IDManagerPanel extends (globalThis.HTMLElement || class {}) {
   }
   closePicker() {}
   fill() {
-    this.shadowRoot.querySelector("#part").value = this.store.value(
-      this.kind,
-      this.selected[this.kind],
-    );
+    const value = this.store.value(this.kind, this.selected[this.kind]);
+    this.shadowRoot.querySelector("#part").value = value === "-" ? "" : value;
     this.refresh();
   }
   refresh({ tree = true } = {}) {
@@ -1312,6 +1331,12 @@ export class IDManagerPanel extends (globalThis.HTMLElement || class {}) {
     q("#confirm").disabled =
       this.busy || !this.store.valid || !this.store.count;
     q("#confirm").textContent = this.busy ? w.saving : w.confirm;
+    q("#omit-label").hidden = this.kind !== "entities";
+    q("#omit-part").checked = this.kind === "entities" && this.store.value(this.kind, id) === "-";
+    q("#omit-part").disabled = this.busy || !id;
+    const target = this.kind === "entities" ? this.store.entityTarget(current) : "";
+    q("#target-id").hidden = !target;
+    q("#target-id").textContent = target ? `${this.words === WORDS.ru ? "Итоговый ID" : "Resulting ID"}: ${target}` : "";
     q("#part").disabled = this.busy || !id;
     q("#object").disabled = this.busy || !id;
     q("#clear").disabled = this.busy || !id || !this.store.value(this.kind, id);
@@ -1322,7 +1347,7 @@ export class IDManagerPanel extends (globalThis.HTMLElement || class {}) {
       `${this.words === WORDS.ru ? "Для одноимённых" : "Apply to same name"} (${namesakes.length})`;
     q("#bulk-copy").hidden = this.kind === "areas";
     q("#bulk-copy").disabled =
-      this.busy || !namesakes.length || !value || !PART.test(value);
+      this.busy || !namesakes.length || !value || !(PART.test(value) || (this.kind === "entities" && value === "-"));
     if (
       this.bulkPending &&
       (this.bulkPending.key !== this.kind ||

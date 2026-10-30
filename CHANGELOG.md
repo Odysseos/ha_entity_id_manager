@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.8.0
+
+- Add an entity-only option to omit its own ID part while keeping empty fields as automatic fallbacks.
+- Keep the field editable and disable omission on typing or paste; restore the previous value when toggled off.
+- Show omission chips and resulting entity IDs, support bulk copying, and validate collisions and empty results.
+- Cover omission, draft reset, focus/input behavior and persistence in model, browser and Home Assistant tests.
+
 ## 0.7.3
 
 - Show a bulk-operation result and its undo control only for the object that started the operation; preserve both when navigating away and back.

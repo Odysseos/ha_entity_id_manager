@@ -207,6 +207,18 @@ assert.deepEqual(alreadyNamed.namesakeTargets("devices", "source", true).map(o =
 alreadyNamed.set("areas", "room", "other_room");
 assert.equal(alreadyNamed.namesakeTargets("entities", "sourceEntity", true).length, 2);
 console.log("Already-correct full IDs are excluded without requiring saved overrides: passed");
+alreadyNamed.omit("sourceEntity", true);
+assert.equal(alreadyNamed.value("entities", "sourceEntity"), "-");
+assert.equal(alreadyNamed.valid, true);
+assert.equal(alreadyNamed.entityTarget(alreadyNamed.byId.entities.get("sourceEntity")), "sensor.other_room_sensor");
+alreadyNamed.omit("sourceEntity", false);
+assert.equal(alreadyNamed.value("entities", "sourceEntity"), "humidity");
+alreadyNamed.omit("sourceEntity", true);
+alreadyNamed.set("entities", "sourceEntity", "temperature");
+assert.equal(alreadyNamed.value("entities", "sourceEntity"), "temperature");
+alreadyNamed.reset("entities", "sourceEntity");
+assert.equal(alreadyNamed.value("entities", "sourceEntity"), "humidity");
+console.log("Omitted suffix is distinct from fallback and preserves drafts: passed");
 
 const humidity = new DraftStore({
   revision: "h",

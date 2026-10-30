@@ -151,7 +151,7 @@ def draft_options(hass, entry, changes):
             if not isinstance(value, str):
                 raise EditError("invalid_part", "ID part must be a string")
             try:
-                part = validate_part(value)
+                part = "-" if key == "entities" and value == "-" else validate_part(value)
             except ValueError as err:
                 raise EditError("invalid_part", str(err)) from err
             if object_id not in available[key] and part:

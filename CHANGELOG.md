@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.6.0
+
+- Replace separate area, device and entity tabs with one hierarchical tree and a persistent editor.
+- Separate branch expansion from object selection and preserve drafts while navigating.
+- Keep ancestor context in search and conflict filters, with unassigned objects grouped last.
+- Stack the tree above the editor on narrow screens.
+
 ## 0.5.0
 
 - Copy ID parts to devices or entities with the same own name across areas and devices.

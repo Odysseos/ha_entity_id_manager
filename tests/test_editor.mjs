@@ -7,7 +7,7 @@ const source = await readFile(
   ),
   "utf8",
 );
-const { DraftStore, IDManagerPanel } = await import(
+const { DraftStore, IDManagerPanel, buildTree } = await import(
   `data:text/javascript;base64,${Buffer.from(source).toString("base64")}`
 );
 const snapshot = {
@@ -201,3 +201,24 @@ assert.equal(humidity.copyToNamesakes("entities", "h1", false), 1);
 assert.equal(humidity.value("entities", "h2"), "humidity");
 assert.equal(humidity.value("entities", "t"), "");
 console.log("Namesake entities ignore parent paths: passed");
+
+const tree = buildTree({
+  areas: [{ id: "a", name: "Ванная" }],
+  devices: [
+    { id: "d", name: "Сенсор", area_id: "a" },
+    { id: "none", name: "Без зоны" },
+  ],
+  entities: [
+    { id: "e", name: "Влажность", area_id: "a", device_id: "d" },
+    { id: "direct", name: "Шаблон", area_id: "a" },
+    { id: "orphan", name: "Без зоны" },
+  ],
+});
+assert.equal(tree[0].object.id, "a");
+assert.equal(tree[0].children[0].object.id, "d");
+assert.equal(tree[0].children[0].children[0].object.id, "e");
+assert.equal(tree[0].children[1].object.id, "direct");
+assert.equal(tree.at(-1).key, "no-area");
+assert.equal(tree.at(-1).kind, null);
+assert.equal(tree.at(-1).children.length, 2);
+console.log("Unified tree grouping: passed");

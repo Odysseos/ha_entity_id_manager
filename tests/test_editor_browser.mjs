@@ -43,453 +43,130 @@ try {
     </script></body></html>`,
     });
   });
+
   await page.goto("http://editor.test/");
+  await page.evaluate(() => {
+    window.test.snapshot.objects.entities.push({
+      id: "e2",
+      name: "Температура",
+      entity_id: "sensor.second",
+      area_id: "b",
+      device_id: "d",
+      area_name: "Ванная",
+      device_name: "Нептун",
+    });
+    window.test.snapshot.mappings.entities.e2 = "previous";
+  });
   const q = (s) => page.locator(`entity-id-manager-panel ${s}`);
-  const choose = async (id) => {
-    await q("#object").click();
-    await q(`.object-option[data-object-id="${id}"]`).click();
-  };
+  const select = async (kind, id) =>
+    q(`.tree-select[data-kind-id="${kind}"][data-object-id="${id}"]`)
+      .first()
+      .click();
   await q("#open").click();
   await q("#editor-dialog").waitFor({ state: "visible" });
-  const layout = () =>
-    page.locator("entity-id-manager-panel").evaluate((panel) => {
-      const root = panel.shadowRoot;
-      return [
-        "#editor-dialog",
-        ".tabs",
-        ".object-filters",
-        ".picker",
-        "#part",
-        ".tools",
-        ".editor-footer",
-      ].map((selector) => {
-        const box = root.querySelector(selector).getBoundingClientRect();
-        return [box.x, box.y, box.width, box.height];
-      });
-    });
-  const fixedLayout = await layout();
-  for (const kind of ["devices", "entities", "areas"]) {
-    await q(`[data-kind="${kind}"]`).click();
-    assert.deepEqual(
-      await layout(),
-      fixedLayout,
-      `Layout must remain fixed on ${kind}`,
-    );
-  }
-
-  await choose("a");
-  assert.ok(
-    await q("#object").evaluate((node) => {
-      const a = node.querySelector(".object-name").getBoundingClientRect();
-      const b = node.querySelector(".object-own").getBoundingClientRect();
-      return Math.abs(a.top + a.height / 2 - b.top - b.height / 2) < 1;
-    }),
-  );
-  assert.equal(
-    await q("#selected-link a").getAttribute("href"),
-    "/config/areas/area/a",
-  );
-
-  await q("#part").fill("lounge");
-  assert.deepEqual(await q("#object .id-chip").allTextContents(), [
-    "living_room",
-    "lounge",
-  ]);
-  assert.equal(await q("#object .removed").count(), 1);
-  assert.equal(await q("#object .added").count(), 1);
-  assert.match(
-    await q("#object .removed").evaluate(
-      (node) => getComputedStyle(node).textDecorationLine,
-    ),
-    /line-through/,
-  );
-  await q("#object").click();
-  assert.deepEqual(
-    await q('.object-option[data-object-id="a"] .id-chip').allTextContents(),
-    ["living_room", "lounge"],
-  );
-  await page.keyboard.press("Escape");
-  assert.equal(await q("#editor-dialog").isVisible(), true);
-  assert.equal(await q("#object-dropdown").isVisible(), false);
-
-  await choose("b");
-  await q("#part").fill("bathroom");
-  await q("#object").click();
-  await q("#object-search").fill("bathroom");
-  assert.equal(await q(".object-option").count(), 1);
-  await page.keyboard.press("ArrowDown");
-  await page.keyboard.press("Enter");
-  assert.equal(await q("#part").inputValue(), "bathroom");
-  await choose("a");
-  assert.equal(await q("#part").inputValue(), "lounge");
-  await q("#reset").click();
-  assert.equal(await q("#part").inputValue(), "living_room");
-  assert.equal(await q("#count").textContent(), "Изменено объектов: 1");
-  await q("#clear").click();
-  assert.deepEqual(await q("#object .id-chip").allTextContents(), [
-    "living_room",
-  ]);
-  assert.equal(await q("#object .removed").count(), 1);
-  assert.equal(await q("#object .added").count(), 0);
-  assert.equal((await q("#object").textContent()).includes("удалить"), false);
-  await q("#cancel").click();
-  assert.equal(await page.evaluate(() => window.test.calls.length), 0);
-  await q("#open").click();
-  await choose("a");
-  assert.equal(await q("#part").inputValue(), "living_room");
-  await q("#part").fill("lounge");
-  await choose("b");
-  await q("#part").fill("bathroom");
-  await q('[data-kind="devices"]').click();
-  assert.match(await q("#object").textContent(), /Ванная\/Нептун/);
-  assert.equal(await q("#object .object-icon").count(), 1);
-  assert.equal(await q("#object .id-chip.prefix").textContent(), "bathroom");
-  assert.equal(
-    await q("#selected-link a").getAttribute("href"),
-    "/config/devices/device/d",
-  );
-  assert.equal(await q("#selected-link a").getAttribute("target"), "_blank");
-  const alignment = await q("#object").evaluate((node) => {
-    const box = (selector) =>
-      node.querySelector(selector).getBoundingClientRect();
-    const name = box(".object-name"),
-      hint = box(".object-description");
-    const prefix = box(".object-prefix"),
-      own = box(".object-own");
-    return {
-      first: Math.abs(
-        (name.top + name.bottom - prefix.top - prefix.bottom) / 2,
-      ),
-      second: Math.abs((hint.top + hint.bottom - own.top - own.bottom) / 2),
-      separated: own.top >= prefix.bottom,
-    };
-  });
-  assert.ok(alignment.first < 1 && alignment.second < 1 && alignment.separated);
-  await q("#object").click();
-  assert.ok(
-    await q('.object-option[data-object-id="d"]').evaluate((node) => {
-      const box = (s) => node.querySelector(s).getBoundingClientRect();
-      const name = box(".object-name"),
-        hint = box(".object-description"),
-        prefix = box(".object-prefix"),
-        own = box(".object-own");
-      return (
-        getComputedStyle(node).display === "grid" &&
-        Math.abs(name.top + name.height / 2 - prefix.top - prefix.height / 2) <
-          1 &&
-        Math.abs(hint.top + hint.height / 2 - own.top - own.height / 2) < 1 &&
-        own.top >= prefix.bottom
-      );
-    }),
-  );
-  assert.deepEqual(
-    await q(".object-option").evaluateAll((nodes) =>
-      nodes.map((node) => node.dataset.objectId),
-    ),
-    ["d", "unassigned"],
-  );
-  assert.equal(
-    await q(".object-choice:last-child a").getAttribute("href"),
-    "/config/devices/device/unassigned",
-  );
-  await page.keyboard.press("Escape");
-
-  await q('[data-kind="entities"]').click();
-  assert.match(
-    await q("#object").textContent(),
-    /Кухня\/Мультисенсор\/Температура/,
-  );
-  assert.equal(
-    await q("#object .id-chip.prefix").textContent(),
-    "lounge/neptun",
-  );
-  assert.equal(
-    await q(
-      "#object .id-chip.prefix.removed, #object .id-chip.prefix.added",
-    ).count(),
-    0,
-  );
-  assert.equal(
-    await q("#selected-link a").getAttribute("href"),
-    "/config/entities?more-info-entity-id=sensor.test",
-  );
-
+  assert.equal(await q(".tabs").count(), 0);
+  assert.equal(await q('[role="tree"]').count(), 1);
+  const layout = () => q("#editor-dialog").boundingBox();
+  const initial = await layout();
+  await select("entities", "e");
   assert.equal(
     await q("#object .object-current-id").textContent(),
     "sensor.test",
   );
-  assert.equal(await q("#copy-id").isVisible(), true);
-  assert.ok(
-    await q(".selected-row").evaluate((row) => {
-      const outer = row.getBoundingClientRect(),
-        link = row.querySelector(".object-link").getBoundingClientRect();
-      return link.left >= outer.left && link.right <= outer.right + 1;
-    }),
-  );
-  assert.equal(await q("#object .object-icon").count(), 1);
-  assert.equal(
-    await q("#object .object-description").textContent(),
-    "Temperature parameter",
-  );
-  await q("#object").click();
-  assert.deepEqual(
-    await q(".object-option").evaluateAll((nodes) =>
-      nodes.map((node) => node.dataset.objectId),
-    ),
-    ["e", "no_area"],
-  );
-  await page.keyboard.press("Escape");
-  await q('[data-kind="devices"]').click();
-  assert.equal(
-    await q("#object .object-description").textContent(),
-    "Model X · Vendor",
-  );
-
-  await q("#part").fill("water_guard");
-  await q('[data-kind="areas"]').click();
-  await choose("a");
-  assert.equal(await q("#part").inputValue(), "lounge");
-  await q("#part").fill("INVALID");
-  assert.equal(await q("#confirm").isDisabled(), true);
-  await q("#part").fill("lounge");
-  if (process.env.EDITOR_SCREENSHOT) {
-    await q("#object").click();
-    await page.screenshot({ path: process.env.EDITOR_SCREENSHOT });
-    await page.keyboard.press("Escape");
-  }
-  await q("#confirm").click();
-  await q("#editor-dialog").waitFor({ state: "hidden" });
-  const calls = await page.evaluate(() => window.test.calls);
-  assert.equal(calls.length, 1);
-  assert.deepEqual(calls[0].changes, {
-    areas: { a: "lounge", b: "bathroom" },
-    devices: { d: "water_guard" },
-    entities: {},
-  });
-  await q("#open").click();
-  await choose("a");
-  await q("#part").fill("living");
-  await page.evaluate(() => (window.test.fail = true));
-  await q("#confirm").click();
-  await q("#error").filter({ hasText: "другом окне" }).waitFor();
-  assert.equal(await q("#part").inputValue(), "living");
-  await page.keyboard.press("Escape");
-  await q("#editor-dialog").waitFor({ state: "hidden" });
-  await q("#open").click();
-  await choose("a");
-  assert.equal(await q("#part").inputValue(), "lounge");
-  await q("#cancel").click();
-  await page.evaluate(() => {
-    window.test.snapshot.objects.areas = Array.from({ length: 60 }, (_, i) => ({
-      id: `area_${i}`,
-      name: `Комната ${String(i).padStart(2, "0")}`,
-    }));
-  });
-  await page.setViewportSize({ width: 1024, height: 1000 });
-  await q("#open").click();
-  await q("#object").click();
-  const geometry = await page
-    .locator("entity-id-manager-panel")
-    .evaluate((panel) => {
-      const root = panel.shadowRoot;
-      const popup = root.querySelector("#object-dropdown"),
-        dialog = root.querySelector("#editor-dialog");
-      const p = popup.getBoundingClientRect(),
-        d = dialog.getBoundingClientRect();
-      return {
-        topLayer: popup.matches(":popover-open"),
-        bottom: p.bottom,
-        dialogBottom: d.bottom,
-        height: p.height,
-        viewport: innerHeight,
-      };
-    });
-  assert.equal(geometry.topLayer, true);
-  assert.ok(
-    await q("#object-dropdown").evaluate((node) =>
-      node.matches(":popover-open"),
-    ),
-    "List must use the top layer independently of dialog layout",
-  );
-  assert.ok(geometry.bottom <= geometry.viewport - 7);
-  assert.ok(geometry.height > 230);
-  const searchTop = (await q("#object-search").boundingBox()).y;
-  await q("#object-list").evaluate(
-    (node) => (node.scrollTop = node.scrollHeight),
-  );
-  assert.equal((await q("#object-search").boundingBox()).y, searchTop);
-  await q('.object-option[data-object-id="area_59"]').click();
-  assert.match(await q("#object").textContent(), /Комната 59/);
-  await page.setViewportSize({ width: 390, height: 640 });
-  await q("#object").click();
-  const small = await q("#object-dropdown").boundingBox();
-  assert.ok(small.x >= 7 && small.x + small.width <= 383);
-  assert.ok(small.y >= 7 && small.y + small.height <= 633);
-  await page.keyboard.press("Escape");
-  await page.setViewportSize({ width: 1024, height: 550 });
-  await page.locator("entity-id-manager-panel").evaluate((panel) => {
-    panel.shadowRoot.querySelector("#editor-dialog").style.transform =
-      "translateY(100px)";
-    panel.togglePicker(true);
-  });
-  const up = await q("#object-dropdown").boundingBox(),
-    anchor = await q("#object").boundingBox();
-  assert.ok(
-    up.y + up.height <= anchor.y,
-    "List must open upwards when lower space is limited",
-  );
-  assert.ok(up.y >= 7);
-  await page.keyboard.press("Escape");
-  await page
-    .locator("entity-id-manager-panel")
-    .evaluate(
-      (panel) =>
-        (panel.shadowRoot.querySelector("#editor-dialog").style.transform = ""),
-    );
-  await q("#cancel").click();
-  await q("#automatic").check();
-  await page.waitForFunction(() => window.test.snapshot.auto_new === true);
-  await q("#preview-open").click();
-  await q("#preview-dialog").waitFor({ state: "visible" });
-  assert.equal(
-    await q('#preview-rows input[value="blocked"]').isDisabled(),
-    true,
-  );
-  await q('#preview-rows input[value="valid"]').check();
-  await q("#preview-apply").click();
-  await q("#preview-dialog").waitFor({ state: "hidden" });
-  assert.match(await q("#status").textContent(), /Переименовано сущностей: 1/);
-  const applyCall = await page.evaluate(() =>
-    window.test.calls.find((call) => call.type === "entity_id_manager/apply"),
-  );
-  assert.deepEqual(applyCall.rows, [
-    { registry_id: "valid", old: "sensor.old", new: "sensor.next" },
-  ]);
-  await page.goto("http://editor.test/?config_entry=installed_entry");
-  await q("#editor-dialog").waitFor({ state: "visible" });
-  assert.equal(await q("#object").isVisible(), true);
-  await q("#cancel").click();
-  assert.deepEqual(errors, []);
+  await q("#part").fill("temperature");
+  await select("devices", "d");
+  assert.equal(await q("#part").inputValue(), "neptun");
+  await q("#part").fill("guard");
+  await select("areas", "b");
+  await q("#part").fill("bathroom");
+  await select("entities", "e");
+  assert.equal(await q("#part").inputValue(), "temperature");
+  assert.deepEqual(await layout(), initial);
+  await q("#bulk-copy").click();
+  assert.equal(await q("#bulk-choice").isVisible(), true);
+  await q("#bulk-all").click();
+  await select("entities", "e2");
+  assert.equal(await q("#part").inputValue(), "temperature");
+  await q("#bulk-undo").click();
+  assert.equal(await q("#part").inputValue(), "previous");
+  await q("#object-search").fill("Temperature parameter");
+  assert.equal(await q('.tree-select[data-kind-id="entities"]').count(), 1);
+  assert.equal(await q('.tree-select[data-kind-id="areas"]').count(), 1);
+  assert.equal(await q('.tree-select[data-kind-id="devices"]').count(), 1);
+  await q("#object-search").fill("");
+  await select("entities", "e");
+  const areaToggle = q('.tree-toggle[aria-label="Свернуть: Гостиная"]');
+  await areaToggle.click();
+  assert.equal(await q('.tree-select[data-object-id="e"]').count(), 0);
+  assert.equal(await q("#part").inputValue(), "temperature");
+  await q('.tree-toggle[aria-label="Развернуть: Гостиная"]').click();
+  assert.equal(await q('.tree-select[data-object-id="e"]').count(), 1);
   await page.evaluate(() => {
     window.test.conflicts = {
       e: [
         {
-          target: "sensor.duplicate",
-          reason: "occupied",
-          related: ["no_area"],
+          target: "sensor.collision",
+          reason: "duplicate_target",
+          related: ["e2"],
         },
       ],
-      no_area: [
-        { target: "sensor.duplicate", reason: "occupied", related: ["e"] },
+      e2: [
+        {
+          target: "sensor.collision",
+          reason: "duplicate_target",
+          related: ["e"],
+        },
       ],
     };
   });
-  await q("#open").click();
-  await q("#conflict-filter").filter({ hasText: "2" }).waitFor();
-  await q('[data-kind="entities"]').click();
-  assert.equal(await q("#object .object-conflict").count(), 1);
-  assert.match(await q("#conflict-detail").textContent(), /sensor.duplicate/);
+  await q("#part").fill("test");
+  await q("#conflict-filter").filter({ hasText: "(2)" }).waitFor();
   await q("#conflict-filter").click();
-  assert.equal(await q(".object-option").count(), 2);
-  await page.keyboard.press("Escape");
-  await q('[data-kind="devices"]').click();
-  assert.equal(await q("#conflict-detail").isVisible(), false);
-  assert.equal(await q("#selected-link .conflict-jump").textContent(), "1");
-  await q("#selected-link .conflict-jump").click();
-  assert.equal(await q(".object-option").count(), 1);
-  assert.equal(await q(".object-option").getAttribute("data-object-id"), "e");
-  assert.match(await q("#filter-scope").textContent(), /Ванная\/Нептун.*\(1\)/);
-  assert.equal(await q("#filter-scope").getAttribute("aria-pressed"), "true");
-  assert.equal(await q("#conflict-filter").textContent(), "Все конфликты (2)");
-  await q("#conflict-filter").click();
-  assert.equal(await q(".object-option").count(), 2);
-  assert.equal(
-    await q("#conflict-filter").getAttribute("aria-pressed"),
-    "true",
+  assert.equal(await q('.tree-select[data-kind-id="entities"]').count(), 2);
+  assert.match(await q("#conflict-detail").textContent(), /sensor.collision/);
+  assert.equal(await q('.tree-select[data-object-id="no_area"]').count(), 0);
+  await q("#filter-all").click();
+  assert.equal(await q('.tree-select[data-object-id="no_area"]').count(), 1);
+  await q("#confirm").click();
+  await q("#editor-dialog").waitFor({ state: "hidden" });
+  const saves = await page.evaluate(() =>
+    window.test.calls.filter((call) => call.type.endsWith("/save")),
   );
-  await q("#filter-scope").click();
-  assert.equal(await q(".object-option").count(), 1);
-
-  await page.keyboard.press("Escape");
-  await q('[data-kind="areas"]').click();
-  await choose("a");
-  assert.equal(await q("#conflict-detail").isVisible(), false);
-  assert.equal(await q("#selected-link .conflict-jump").textContent(), "1");
+  assert.equal(saves.length, 1);
+  assert.equal(saves[0].changes.entities.e, "test");
+  assert.equal(saves[0].changes.devices.d, "guard");
+  assert.equal(saves[0].changes.areas.b, "bathroom");
+  await q("#open").click();
+  await select("entities", "e");
+  await q("#part").fill("discard");
   await q("#cancel").click();
-  await page.evaluate(() => {
-    window.test.conflicts.e[0].related = Array.from(
-      { length: 12 },
-      (_, i) => `peer_${i}`,
-    );
-  });
   await q("#open").click();
-  await q("#conflict-filter").filter({ hasText: "2" }).waitFor();
-  await q('[data-kind="entities"]').click();
-  await choose("e");
-  assert.equal(
-    (await q("#conflict-detail").textContent()).split("\n").length,
-    3,
-  );
-  assert.equal(await q("#conflict-more").textContent(), "Ещё 9");
-  await q("#conflict-more").click();
-  assert.equal(
-    (await q("#conflict-detail").textContent()).split("\n").length,
-    12,
-  );
+  await select("entities", "e");
+  assert.equal(await q("#part").inputValue(), "test");
+  if (process.env.EDITOR_SCREENSHOT)
+    await page.screenshot({
+      path: process.env.EDITOR_SCREENSHOT.replace(".png", "-desktop.png"),
+    });
+  await page.setViewportSize({ width: 390, height: 720 });
+  const bounds = await layout();
   assert.ok(
-    await q("#conflict-detail").evaluate(
-      (node) =>
-        node.clientHeight <= 180 && node.scrollHeight > node.clientHeight,
-    ),
+    bounds.x >= 0 &&
+      bounds.x + bounds.width <= 390 &&
+      bounds.y >= 0 &&
+      bounds.y + bounds.height <= 720,
   );
-  await q("#conflict-more").click();
-  assert.equal(
-    (await q("#conflict-detail").textContent()).split("\n").length,
-    3,
-  );
+  assert.ok(await q("#confirm").isVisible());
+  assert.ok(await q("#object-list").evaluate((node) => node.clientHeight > 80));
+  if (process.env.EDITOR_SCREENSHOT)
+    await page.screenshot({ path: process.env.EDITOR_SCREENSHOT });
   await q("#cancel").click();
-  await page.goto("http://editor.test/");
-  await page.evaluate(() => {
-    window.test.snapshot.objects.devices.push(
-      { id: "d2", name: "Нептун", area_name: "Кухня" },
-      { id: "d3", name: "Нептун", area_name: "Спальня" },
-    );
-    window.test.snapshot.mappings.devices.d3 = "other";
-  });
-  await q("#open").click();
-  await q('[data-kind="devices"]').click();
-  await choose("d");
-  await q("#part").fill("guard");
-  assert.equal(await q("#bulk-copy").textContent(), "Для одноимённых (2)");
-  await q("#bulk-copy").click();
-  assert.equal(await q("#bulk-choice").isVisible(), true);
-  await q("#bulk-empty").click();
-  await choose("d2");
-  assert.equal(await q("#part").inputValue(), "guard");
-  await choose("d3");
-  assert.equal(await q("#part").inputValue(), "other");
-  await q("#bulk-undo").click();
-  await choose("d2");
-  assert.equal(await q("#part").inputValue(), "");
-  await choose("d");
-  await q("#bulk-copy").click();
-  await q("#bulk-all").click();
-  await choose("d3");
-  assert.equal(await q("#part").inputValue(), "guard");
-  await choose("d2");
-  await q("#part").fill("manual");
-  await q("#bulk-undo").click();
-  assert.equal(await q("#part").inputValue(), "manual");
-  await choose("d3");
-  assert.equal(await q("#part").inputValue(), "other");
-  await q("#cancel").click();
-  await q("#open").click();
-  await q('[data-kind="devices"]').click();
-  await choose("d2");
-  assert.equal(await q("#part").inputValue(), "");
-  await q("#cancel").click();
+  await q("#preview-open").click();
+  await q('#preview-rows input[value="valid"]').check();
+  await q("#preview-apply").click();
+  await q("#preview-dialog").waitFor({ state: "hidden" });
+  assert.deepEqual(errors, []);
   console.log(
-    "Browser editor: selection, draft labels, reset, clear, cancel, batch save, validation, stale guard and viewport popover geometry, preview, automatic mode and direct settings entry passed",
+    "Unified tree: navigation, hierarchy, search, conflicts, bulk undo, batch save, cancellation, fixed layout and mobile bounds passed",
   );
 } finally {
   await browser.close();

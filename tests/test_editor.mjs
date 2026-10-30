@@ -192,6 +192,22 @@ matching.set("devices", "a", "");
 assert.equal(matching.namesakeTargets("devices", "a", true).length, 0);
 console.log("Namesake counts include only effective changes: passed");
 
+const alreadyNamed = new DraftStore({
+  mappings: { areas: { room: "room" }, devices: { source: "sensor" }, entities: { sourceEntity: "humidity" } },
+  objects: { areas: [], devices: [
+    { id: "source", name: "Сенсор" }, { id: "correct", name: "Сенсор" }, { id: "wrong", name: "Сенсор" },
+  ], entities: [
+    { id: "sourceEntity", name: "Влажность", device_id: "source", area_id: "room", entity_id: "sensor.source", default_parts: { area: "room", device: "sensor", suffix: "vlazhnost" } },
+    { id: "correctEntity", name: "Влажность", device_id: "correct", area_id: "room", entity_id: "sensor.room_sensor_humidity", default_parts: { area: "room", device: "sensor", suffix: "humidity" } },
+    { id: "wrongEntity", name: "Влажность", device_id: "wrong", area_id: "room", entity_id: "sensor.wrong", default_parts: { area: "room", device: "sensor", suffix: "humidity" } },
+  ] },
+});
+assert.deepEqual(alreadyNamed.namesakeTargets("entities", "sourceEntity", true).map(o => o.id), ["wrongEntity"]);
+assert.deepEqual(alreadyNamed.namesakeTargets("devices", "source", true).map(o => o.id), ["wrong"]);
+alreadyNamed.set("areas", "room", "other_room");
+assert.equal(alreadyNamed.namesakeTargets("entities", "sourceEntity", true).length, 2);
+console.log("Already-correct full IDs are excluded without requiring saved overrides: passed");
+
 const humidity = new DraftStore({
   revision: "h",
   mappings: { areas: {}, devices: {}, entities: {} },

@@ -10,6 +10,7 @@ from homeassistant.components import websocket_api
 from homeassistant.helpers import area_registry as ar
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers import entity_registry as er
+from homeassistant.util import slugify
 
 from .const import DOMAIN
 from .naming import validate_part
@@ -31,7 +32,7 @@ def revision(entry):
     return hashlib.sha256(json.dumps(mappings(entry), sort_keys=True).encode()).hexdigest()
 
 
-def objects(hass):
+def objects(hass, fallbacks=None):
     areas = ar.async_get(hass)
     devices = dr.async_get(hass)
     registry = er.async_get(hass)
@@ -85,11 +86,27 @@ def objects(hass):
             continue
         device = devices.async_get(obj.device_id) if obj.device_id else None
         state = hass.states.get(obj.entity_id)
+        area_id = er.async_get_effective_area_id(hass, obj)
+        area = areas.async_get_area(area_id) if area_id else None
+        default_suffix = (
+            slugify(obj.original_name_unprefixed or obj.original_name)
+            if obj.original_name
+            else "state"
+            if obj.has_entity_name
+            else (fallbacks or {}).get(obj.id, obj.entity_id.split(".", 1)[1])
+        )
         result["entities"].append(
             {
                 "id": obj.id,
                 "name": er.async_get_unprefixed_name(hass, obj) or obj.entity_id,
                 "entity_id": obj.entity_id,
+                "default_parts": {
+                    "area": slugify(area.name) if area else "",
+                    "device": slugify(device.name_by_user or device.name or "device")
+                    if device
+                    else "",
+                    "suffix": default_suffix,
+                },
                 "description": " · ".join(
                     dict.fromkeys(
                         value
@@ -116,7 +133,7 @@ def snapshot(hass, entry):
     return {
         "revision": revision(entry),
         "mappings": mappings(entry),
-        "objects": objects(hass),
+        "objects": objects(hass, entry.data.get("fallback_suffixes", {})),
         "auto_new": bool(entry.options.get("auto_new", False)),
     }
 

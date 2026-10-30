@@ -70,7 +70,16 @@ def ctx(tmp_path):
 
 @pytest.mark.asyncio
 async def test_rename_and_stable_overrides(ctx):
+    from homeassistant import loader
+    from homeassistant.helpers import frame
+
+    from custom_components.entity_id_manager.editor import snapshot
+
     hass, entry, area, device, entity = await ctx()
+    loader.async_setup(hass)
+    frame.async_setup(hass)
+    defaults = snapshot(hass, entry)["objects"]["entities"][0]["default_parts"]
+    assert defaults == {"area": "vannaia", "device": "neptun", "suffix": "water_leak"}
     manager = Manager(hass, entry)
     plan = manager.snapshot()
     assert len(plan) == 1

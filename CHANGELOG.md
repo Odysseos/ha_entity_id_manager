@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.7.2
+
+- Exclude same-name targets whose full entity IDs already match the proposed naming, even without saved ID-part overrides.
+- Evaluate device targets against their child entities, including parent and entity drafts.
+- Add a regression test reproducing the incorrect count in 0.7.1.
+
 ## 0.7.1
 
 - Count only same-name objects whose ID part would actually change, using current drafts as well as saved values.

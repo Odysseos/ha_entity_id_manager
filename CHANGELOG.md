@@ -1,8 +1,14 @@
 # Changelog
 
+## 0.9.0
+
+- Use “ID segment” consistently in the editor, translations, documentation, code and API fields while preserving saved mappings and entity identities.
+- Place the omission checkbox beside the segment heading with matching typography and baseline alignment.
+- Let heading and action rows wrap on narrow screens without horizontal scrollbars.
+
 ## 0.8.0
 
-- Add an entity-only option to omit its own ID part while keeping empty fields as automatic fallbacks.
+- Add an entity-only option to omit its own ID segment while keeping empty fields as automatic fallbacks.
 - Keep the field editable and disable omission on typing or paste; restore the previous value when toggled off.
 - Show omission chips and resulting entity IDs, support bulk copying, and validate collisions and empty results.
 - Cover omission, draft reset, focus/input behavior and persistence in model, browser and Home Assistant tests.
@@ -14,13 +20,13 @@
 
 ## 0.7.2
 
-- Exclude same-name targets whose full entity IDs already match the proposed naming, even without saved ID-part overrides.
+- Exclude same-name targets whose full entity IDs already match the proposed naming, even without saved ID-segment overrides.
 - Evaluate device targets against their child entities, including parent and entity drafts.
 - Add a regression test reproducing the incorrect count in 0.7.1.
 
 ## 0.7.1
 
-- Count only same-name objects whose ID part would actually change, using current drafts as well as saved values.
+- Count only same-name objects whose ID segment would actually change, using current drafts as well as saved values.
 - Show separate counts for unset-only and replace-all operations, and disable operations with no changes.
 - Add model and browser regression checks for bulk-operation counts.
 
@@ -42,7 +48,7 @@
 
 ## 0.6.1
 
-- Update only affected tree rows while editing ID parts instead of rebuilding the whole tree on each keystroke and conflict response.
+- Update only affected tree rows while editing ID segments instead of rebuilding the whole tree on each keystroke and conflict response.
 - Index parent conflicts once per check result instead of repeatedly scanning all entities for each parent.
 - Debounce tree search and preserve existing tree nodes and scroll position during editing.
 - Add a browser regression check for typing with 5,000 entities.
@@ -56,8 +62,8 @@
 
 ## 0.5.0
 
-- Copy ID parts to devices or entities with the same own name across areas and devices.
-- Choose between filling unset parts and replacing all matching parts when different values exist.
+- Copy ID segments to devices or entities with the same own name across areas and devices.
+- Choose between filling unset segments and replacing all matching segments when different values exist.
 - Stage bulk edits as drafts, recalculate conflicts and allow undo without overwriting later manual edits.
 
 ## 0.4.6
@@ -114,28 +120,28 @@
 
 ## 0.3.9
 
-- Apply parent prefix backgrounds to individual parts, preventing yellow edges around green draft values.
+- Apply parent prefix backgrounds to individual segments, preventing yellow edges around green draft values.
 
 ## 0.3.8
 
-- Highlight draft parent ID parts in green within the shared prefix, including placeholders for pending removals.
-- Keep unchanged parent parts yellow and omit removed old values from the prefix.
+- Highlight draft parent ID segments in green within the shared prefix, including placeholders for pending removals.
+- Keep unchanged parent segments yellow and omit removed old values from the prefix.
 
 ## 0.3.7
 
-- Keep area names and ID parts on one line in both picker views.
+- Keep area names and ID segments on one line in both picker views.
 - Use the same two-row grid for device and entity list items and the selected object.
 - Remove trailing slashes from parent ID prefixes.
 
 ## 0.3.6
 
-- Align parent ID prefixes with object names and editable ID parts with descriptions in two rows.
+- Align parent ID prefixes with object names and editable ID segments with descriptions in two rows.
 
 ## 0.3.5
 
 - Include integration names in device and entity descriptions.
-- Show a shared pale-yellow area/device prefix before each object’s editable ID part.
-- Use parent drafts in the prefix and placeholders for unassigned parent ID parts.
+- Show a shared pale-yellow area/device prefix before each object’s editable ID segment.
+- Use parent drafts in the prefix and placeholders for unassigned parent ID segments.
 
 ## 0.3.4
 
@@ -174,13 +180,13 @@
 
 ## 0.2.1
 
-- Show saved, changed and removed ID parts with neutral, green and red chips without captions.
+- Show saved, changed and removed ID segments with neutral, green and red chips without captions.
 - Add searchable object selection and keyboard navigation.
 - Fix spacing between the search field and the first object row.
 
 ## 0.2.0
 
-- Add an admin editor with object selection and inline ID-part editing.
+- Add an admin editor with object selection and inline ID-segment editing.
 - Keep drafts across objects and tabs; show saved and draft values as neutral, red and green ID chips without captions.
 - Add a searchable object picker with keyboard navigation and diff styling for replacements and removals.
 - Add per-object Clear and Reset changes controls, batch confirmation and full cancellation.
@@ -189,13 +195,13 @@
 
 ## 0.1.1
 
-- Expose saved ID parts as editable text entities under the integration.
-- Show configured parts in object selectors and list configured objects first.
+- Expose saved ID segments as editable text entities under the integration.
+- Show configured segments in object selectors and list configured objects first.
 - Exclude configuration text entities from rename operations.
 
 ## 0.1.0
 
-- Add independent area, device and entity ID parts through integration options.
+- Add independent area, device and entity ID segments through integration options.
 - Add selective rename previews, collision checks and stale-preview validation.
 - Preserve display names, registry identities and disabled states.
 - Add optional automatic naming for newly registered entities.

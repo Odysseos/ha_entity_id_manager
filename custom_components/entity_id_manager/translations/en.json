@@ -4,7 +4,7 @@
     "step": {
       "user": {
         "title": "Entity ID Manager",
-        "description": "Configure independent ID parts. Open integration options after setup."
+        "description": "Configure independent ID segments. Open integration options after setup."
       }
     },
     "abort": {
@@ -40,10 +40,10 @@
         }
       },
       "value": {
-        "title": "ID part",
+        "title": "ID segment",
         "description": "Object: {object}. Lowercase ASCII letters, digits, underscores; start with a letter. Leave empty to remove the override. Open preview to apply.",
         "data": {
-          "part": "ID part"
+          "segment": "ID segment"
         }
       },
       "preview": {
@@ -66,7 +66,7 @@
       }
     },
     "error": {
-      "invalid_part": "Use lowercase ASCII letters, digits and underscores; start with a letter.",
+      "invalid_segment": "Use lowercase ASCII letters, digits and underscores; start with a letter.",
       "nothing_selected": "Select at least one rename.",
       "stale_preview": "Apply did not complete. Check logs and the refreshed preview; select changes again."
     },
@@ -77,10 +77,10 @@
   "entity": {
     "text": {
       "area": {
-        "name": "Area ID part: {object}"
+        "name": "Area ID segment: {object}"
       },
       "device": {
-        "name": "Device ID part: {object}"
+        "name": "Device ID segment: {object}"
       },
       "entity": {
         "name": "Entity ID suffix: {object}"

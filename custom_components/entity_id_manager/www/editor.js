@@ -1,13 +1,13 @@
 const KEYS = ["areas", "devices", "entities"];
-const PART = /^[a-z][a-z0-9_]*$/;
+const SEGMENT = /^[a-z][a-z0-9_]*$/;
 const WORDS = {
   ru: {
-    title: "Соответствия частей ID",
+    title: "Сегменты ID",
     areas: "Зоны",
     devices: "Устройства",
     entities: "Сущности",
     choose: "Выберите объект",
-    part: "Часть ID",
+    segment: "Сегмент ID",
     clear: "Очистить",
     reset: "Сбросить изменения",
     confirm: "Подтвердить",
@@ -17,7 +17,7 @@ const WORDS = {
     saved:
       "Соответствия сохранены. Для переименования сущностей нажмите «Просмотр и применение» на этой странице.",
     intro:
-      "Измените части ID нескольких объектов и подтвердите их одной операцией. Отображаемые названия не меняются.",
+      "Измените сегменты ID нескольких объектов и подтвердите их одной операцией. Отображаемые названия не меняются.",
     settings: "Настройки интеграции: просмотр и применение",
     invalid:
       "Используйте строчные латинские буквы, цифры и подчёркивания; начните с буквы.",
@@ -33,12 +33,12 @@ const WORDS = {
     search: "Поиск",
   },
   en: {
-    title: "ID part mappings",
+    title: "ID segments",
     areas: "Areas",
     devices: "Devices",
     entities: "Entities",
     choose: "Select object",
-    part: "ID part",
+    segment: "ID segment",
     clear: "Clear",
     reset: "Reset changes",
     confirm: "Confirm",
@@ -48,7 +48,7 @@ const WORDS = {
     saved:
       "Mappings saved. Rename entities using Preview and apply on this page.",
     intro:
-      "Edit ID parts for several objects and confirm them together. Display names stay unchanged.",
+      "Edit ID segments for several objects and confirm them together. Display names stay unchanged.",
     settings: "Integration options: preview and apply",
     invalid:
       "Use lowercase ASCII letters, digits and underscores; start with a letter.",
@@ -175,7 +175,7 @@ export class DraftStore {
   }
   get valid() {
     return KEYS.every((k) =>
-      Object.values(this.drafts[k]).every((v) => !v || (k === "entities" && v === "-") || PART.test(v)),
+      Object.values(this.drafts[k]).every((v) => !v || (k === "entities" && v === "-") || SEGMENT.test(v)),
     );
   }
   segments(key, id) {
@@ -188,19 +188,19 @@ export class DraftStore {
       result.push({ value: this.drafts[key][id], kind: "added" });
     return result;
   }
-  parentParts(key, object) {
+  parentSegments(key, object) {
     if (key === "areas") return [];
-    const parts = [["areas", object.area_id, "<area_id>"]];
+    const segments = [["areas", object.area_id, "<area_id>"]];
     if (key === "entities")
-      parts.push(["devices", object.device_id, "<device_id>"]);
-    return parts.map(([section, id, placeholder]) => ({
+      segments.push(["devices", object.device_id, "<device_id>"]);
+    return segments.map(([section, id, placeholder]) => ({
       value: this.value(section, id) || placeholder,
       kind: Object.hasOwn(this.drafts[section], id) ? "added" : "prefix",
     }));
   }
   prefix(key, object) {
-    return this.parentParts(key, object)
-      .map((part) => part.value)
+    return this.parentSegments(key, object)
+      .map((segment) => segment.value)
       .join("/");
   }
   namesakes(key, id) {
@@ -213,8 +213,8 @@ export class DraftStore {
     );
   }
   entityTarget(entity) {
-    if (!entity?.default_parts || !entity.entity_id) return "";
-    const defaults = entity.default_parts;
+    if (!entity?.default_segments || !entity.entity_id) return "";
+    const defaults = entity.default_segments;
     const suffix = this.value("entities", entity.id) || defaults.suffix;
     return entity.entity_id.split(".", 1)[0] + "." + [
       this.value("areas", entity.area_id) || defaults.area,
@@ -224,15 +224,15 @@ export class DraftStore {
   }
   namesakeTargets(key, id, replace) {
     const after = this.value(key, id);
-    if (!after || !(PART.test(after) || (key === "entities" && after === "-"))) return [];
+    if (!after || !(SEGMENT.test(after) || (key === "entities" && after === "-"))) return [];
     return this.namesakes(key, id).filter((object) => {
       const before = this.value(key, object.id);
       if (before === after || (before && !replace)) return false;
       const entities = key === "entities" ? [object] : this.deviceEntities.get(object.id) || [];
       // Missing defaults in older snapshots must not hide editable objects.
       return !entities.length || entities.some((entity) => {
-        if (!entity.default_parts || !entity.entity_id) return true;
-        const defaults = entity.default_parts;
+        if (!entity.default_segments || !entity.entity_id) return true;
+        const defaults = entity.default_segments;
         const area = this.value("areas", entity.area_id) || defaults.area;
         const device = key === "devices" ? after : this.value("devices", entity.device_id) || defaults.device;
         const suffix = key === "entities" ? after : this.value("entities", entity.id) || defaults.suffix;
@@ -243,13 +243,13 @@ export class DraftStore {
   }
   copyToNamesakes(key, id, replace) {
     const after = this.value(key, id);
-    if (!after || !(PART.test(after) || (key === "entities" && after === "-"))) return 0;
-    const parts = [];
+    if (!after || !(SEGMENT.test(after) || (key === "entities" && after === "-"))) return 0;
+    const segments = [];
     this.batching++;
     for (const object of this.namesakeTargets(key, id, replace)) {
       const before = this.value(key, object.id);
       this.set(key, object.id, after);
-      parts.push({
+      segments.push({
         id: object.id,
         before,
         version: this.versions[`${key}:${object.id}`],
@@ -257,17 +257,17 @@ export class DraftStore {
     }
     this.batching--;
     this.emit();
-    this.bulkUndo = parts.length ? { key, parts } : this.bulkUndo;
-    return parts.length;
+    this.bulkUndo = segments.length ? { key, segments } : this.bulkUndo;
+    return segments.length;
   }
   undoBulk() {
     if (!this.bulkUndo) return 0;
-    const { key, parts } = this.bulkUndo;
+    const { key, segments } = this.bulkUndo;
     let count = 0;
     this.batching++;
-    for (const part of parts) {
-      if (this.versions[`${key}:${part.id}`] !== part.version) continue;
-      this.set(key, part.id, part.before);
+    for (const segment of segments) {
+      if (this.versions[`${key}:${segment.id}`] !== segment.version) continue;
+      this.set(key, segment.id, segment.before);
       count++;
     }
     this.batching--;
@@ -363,8 +363,8 @@ export class TreeModel {
     const node = this.nodes.get(key);
     return node?.object
       ? {
-          parts: this.store.segments(node.kind, node.object.id),
-          parents: this.store.parentParts(node.kind, node.object),
+          segments: this.store.segments(node.kind, node.object.id),
+          parents: this.store.parentSegments(node.kind, node.object),
           conflicts: this.conflicts[node.object.id] || [],
         }
       : null;
@@ -418,7 +418,7 @@ export class TreeModel {
                 object.entity_id,
                 ...this.store
                   .segments(node.kind, object.id)
-                  .map((part) => part.value),
+                  .map((segment) => segment.value),
                 this.store.prefix(node.kind, object),
               ].join(" ")
             : this.noArea;
@@ -606,7 +606,7 @@ export class IDManagerPanel extends (globalThis.HTMLElement || class {}) {
       label{display:block;margin:22px 0 6px;font-size:14px;color:var(--secondary-text-color,#666)}input{box-sizing:border-box;width:100%;padding:16px 12px;font:inherit;color:var(--primary-text-color,#222);background:var(--secondary-background-color,#f5f5f5);border:0;border-bottom:1px solid var(--secondary-text-color,#777);border-radius:4px 4px 0 0}.tools{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}.actions{display:flex;justify-content:flex-end;gap:12px;margin-top:28px}.hint,.count{font-size:14px;color:var(--secondary-text-color,#666)}.error{color:var(--error-color,#b00020);white-space:pre-wrap}#status{white-space:pre-wrap}@media(max-width:600px){main{margin:16px}dialog{padding:20px}.tabs{gap:0}.tabs button{padding:10px}}
 
       [hidden]{display:none!important}.picker{position:relative}#object{border-radius:4px 4px 0 0;border-bottom:1px solid var(--secondary-text-color,#777);background:var(--secondary-background-color,#f5f5f5);padding:16px 12px;width:100%;text-align:left}#object::after{content:"⌄";margin-left:auto;color:var(--secondary-text-color,#666)}
-      .object-row{display:grid;grid-template-columns:24px minmax(0,1fr) minmax(0,1fr) auto;align-items:center;column-gap:10px;row-gap:0;line-height:1.15;color:var(--primary-text-color,#222);font-weight:normal}.object-icon{grid-column:1;grid-row:1 / 3;--mdc-icon-size:24px;color:var(--secondary-text-color,#666)}.object-text{display:contents}.object-name{grid-column:2;grid-row:1}.object-description{grid-column:2;grid-row:2}.object-prefix{grid-column:3;grid-row:1}.object-own{grid-column:3;grid-row:2}.object-prefix,.object-own{display:flex;flex-wrap:wrap;gap:6px;min-width:0}.object-row::after{grid-column:4;grid-row:1 / 3}.object-name{display:block;overflow-wrap:anywhere}.object-description{display:block;font-size:.8em;line-height:1.2;color:var(--secondary-text-color,#666);margin-top:0}.id-chip{font-family:monospace;font-size:.92em;border-radius:4px;padding:1px 7px;overflow-wrap:anywhere;background:color-mix(in srgb,#2196f3 18%,var(--card-background-color,#fff));color:var(--primary-text-color,#222)}.id-chip.prefix{background:transparent;padding:0;display:inline-flex;align-items:baseline;flex-wrap:wrap}.parent-part{padding:1px 7px;border-radius:4px}.parent-part.prefix{background:color-mix(in srgb,#ffc107 22%,var(--card-background-color,#fff))}.parent-part.added{background:color-mix(in srgb,var(--success-color,#0f9d58) 24%,var(--card-background-color,white))}.id-chip.removed{background:color-mix(in srgb,var(--error-color,#db4437) 22%,var(--card-background-color,white));text-decoration:line-through;text-decoration-thickness:1.5px}.id-chip.added{background:color-mix(in srgb,var(--success-color,#0f9d58) 24%,var(--card-background-color,white))}
+      .object-row{display:grid;grid-template-columns:24px minmax(0,1fr) minmax(0,1fr) auto;align-items:center;column-gap:10px;row-gap:0;line-height:1.15;color:var(--primary-text-color,#222);font-weight:normal}.object-icon{grid-column:1;grid-row:1 / 3;--mdc-icon-size:24px;color:var(--secondary-text-color,#666)}.object-text{display:contents}.object-name{grid-column:2;grid-row:1}.object-description{grid-column:2;grid-row:2}.object-prefix{grid-column:3;grid-row:1}.object-own{grid-column:3;grid-row:2}.object-prefix,.object-own{display:flex;flex-wrap:wrap;gap:6px;min-width:0}.object-row::after{grid-column:4;grid-row:1 / 3}.object-name{display:block;overflow-wrap:anywhere}.object-description{display:block;font-size:.8em;line-height:1.2;color:var(--secondary-text-color,#666);margin-top:0}.id-chip{font-family:monospace;font-size:.92em;border-radius:4px;padding:1px 7px;overflow-wrap:anywhere;background:color-mix(in srgb,#2196f3 18%,var(--card-background-color,#fff));color:var(--primary-text-color,#222)}.id-chip.prefix{background:transparent;padding:0;display:inline-flex;align-items:baseline;flex-wrap:wrap}.parent-segment{padding:1px 7px;border-radius:4px}.parent-segment.prefix{background:color-mix(in srgb,#ffc107 22%,var(--card-background-color,#fff))}.parent-segment.added{background:color-mix(in srgb,var(--success-color,#0f9d58) 24%,var(--card-background-color,white))}.id-chip.removed{background:color-mix(in srgb,var(--error-color,#db4437) 22%,var(--card-background-color,white));text-decoration:line-through;text-decoration-thickness:1.5px}.id-chip.added{background:color-mix(in srgb,var(--success-color,#0f9d58) 24%,var(--card-background-color,white))}
       .area-row{grid-template-columns:24px auto minmax(0,1fr) auto}.area-row .object-icon,.area-row::after{grid-row:1}.area-row .object-own{grid-row:1}.area-row .object-prefix{display:none}
       .object-filters{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:16px;font-size:.85em}.object-filters button{padding:6px 10px;max-width:100%;overflow-wrap:anywhere}.object-filters button[aria-pressed=true]{background:var(--secondary-background-color,#eee);box-shadow:inset 0 0 0 1px var(--primary-color,#03a9f4)}#check-status{color:var(--secondary-text-color,#666)}
       .object-current-id{grid-column:2 / 4;grid-row:3;font-family:monospace;font-size:.75em;color:var(--secondary-text-color,#666);overflow-wrap:anywhere;user-select:all}.object-conflict{color:var(--error-color,#db4437);--mdc-icon-size:20px}#conflict-filter[aria-pressed=true]{background:var(--secondary-background-color,#eee)}#conflict-detail{font-size:.85em;overflow-wrap:anywhere;white-space:pre-wrap;max-height:180px;overflow:auto}.conflict-jump{display:flex;align-items:center;gap:4px;color:var(--error-color,#db4437);padding:8px;flex:0 0 auto}#conflict-more{padding:4px 0;font-size:.85em}#copy-id{font-size:.85em;padding:4px 0}
@@ -620,19 +620,19 @@ export class IDManagerPanel extends (globalThis.HTMLElement || class {}) {
       #editor-dialog .picker,#editor-dialog .selected-row{height:100%;min-height:0}#editor-dialog #object{box-sizing:border-box;height:100%;padding:3px 12px;grid-template-rows:20px 20px 16px;align-content:center;row-gap:0}
       #editor-dialog #object.area-row{grid-template-rows:1fr}#editor-dialog #object .object-name,#editor-dialog #object .object-description,#editor-dialog #object .object-current-id{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
       #editor-dialog #object .object-prefix,#editor-dialog #object .object-own{flex-wrap:nowrap;overflow:hidden}#editor-dialog #object .id-chip{white-space:nowrap;flex-shrink:0}#editor-dialog #object .id-chip.prefix{flex-wrap:nowrap}
-      #omit-label{display:flex;align-items:center;white-space:nowrap;font-size:.85em;gap:6px}#omit-part{width:18px;height:18px;margin:0;padding:0}#editor-dialog #part{height:48px;padding:12px}#editor-dialog .tools{margin:0;flex-wrap:nowrap;align-items:center;overflow-x:auto;min-width:0}#editor-dialog .tools button{white-space:nowrap;flex-shrink:0}#bulk-choice,#bulk-result{font-size:.85em}#bulk-choice button,#bulk-result button{padding:4px 10px}#editor-dialog .tools button{padding:6px 12px}
+      #editor-dialog .segment-heading{display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;gap:4px 12px;min-height:26px;font:inherit}#editor-dialog .segment-heading label{align-self:baseline;font:inherit;line-height:24px}#editor-dialog #omit-label{display:inline-block;white-space:nowrap;font:inherit}#omit-label span{font:inherit}#omit-segment{width:18px;height:18px;margin:0 6px 0 0;padding:0;vertical-align:middle}#editor-dialog #segment{height:48px;padding:12px}#editor-dialog .tools{margin:0;flex-wrap:wrap;align-items:baseline;overflow:visible;min-width:0;min-height:32px;gap:4px}#editor-dialog .tools button{white-space:nowrap;flex-shrink:0}#bulk-choice,#bulk-result{font-size:.85em}#bulk-choice button,#bulk-result button{padding:4px 10px}#editor-dialog .tools button{padding:6px 12px}
       .editor-details{min-height:0;overflow:auto;overscroll-behavior:contain;padding:2px 0}.editor-details p{margin:4px 0}.editor-details #conflict-detail{max-height:180px}.editor-footer{display:flex;align-items:center;justify-content:space-between;gap:8px;min-width:0}.editor-footer .count{margin:0}.editor-footer .actions{margin:0;gap:8px}
       @media(max-width:600px),(max-height:700px){#editor-dialog{width:calc(100vw - 16px);height:calc(100dvh - 16px);padding:12px;border-radius:18px}.editor-footer{font-size:.85em}.editor-footer .actions button{padding:10px}.editor-footer .count{max-width:45%}}
-      @media(max-height:550px){#editor-dialog[open]{grid-template-rows:28px 32px 40px 16px 80px 16px 40px 30px minmax(0,1fr) 48px;gap:2px}#editor-dialog #object{padding:2px 12px}#editor-dialog #part{height:40px}}
+      @media(max-height:550px){#editor-dialog[open]{grid-template-rows:28px 32px 40px 16px 80px 16px 40px 30px minmax(0,1fr) 48px;gap:2px}#editor-dialog #object{padding:2px 12px}#editor-dialog #segment{height:40px}}
       #editor-dialog{width:min(1240px,calc(100vw - 32px))}#editor-dialog[open]{grid-template-rows:32px 44px minmax(0,1fr) 64px}
-      .tree-layout{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:18px;min-height:0}.tree-pane,.editor-pane{min-width:0;min-height:0}.tree-pane{contain:layout style;border:1px solid var(--divider-color,#ddd);border-radius:8px;overflow:hidden}.editor-pane{display:grid;grid-template-rows:18px 66px 18px 48px 36px minmax(0,1fr);gap:4px}
+      .tree-layout{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:18px;min-height:0}.tree-pane,.editor-pane{min-width:0;min-height:0}.tree-pane{contain:layout style;border:1px solid var(--divider-color,#ddd);border-radius:8px;overflow:hidden}.editor-pane{display:grid;grid-template-rows:18px 66px auto 48px auto minmax(0,1fr);gap:4px}
       #object-dropdown{position:static;display:flex;height:100%;width:100%;border:0;box-shadow:none;border-radius:0;box-sizing:border-box}#object-list{padding:4px 0;overflow:auto;flex:1;min-height:0}#object-search{min-height:42px;padding:10px;line-height:1.2}
       .tree-line{display:flex;align-items:center;min-width:0;box-sizing:border-box}.tree-toggle,.tree-spacer{flex:0 0 24px;width:24px;padding:4px 0;text-align:center}.tree-group-title{padding:8px}.tree-select{flex:1;min-width:0;border-radius:0;text-align:left;padding:4px;grid-template-columns:22px minmax(0,1fr);column-gap:6px;row-gap:2px}.tree-select .object-name{grid-column:2;grid-row:1}.tree-select .object-description{grid-column:2;grid-row:2}.tree-select .object-current-id{grid-column:2;grid-row:3}.tree-select .object-prefix{display:none}.tree-select .object-own{grid-column:2;grid-row:4}.tree-select .object-name,.tree-select .object-description,.tree-select .object-current-id{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.tree-select .object-icon{grid-column:1;grid-row:1 / 3}.tree-select .object-own:empty{display:none}.tree-select.area-row{grid-template-columns:22px minmax(0,1fr)}.tree-select.area-row .object-own{grid-column:2;grid-row:2}.tree-select::after{display:none}[role=treeitem][aria-selected=true] > .tree-line{background:var(--secondary-background-color,#eee)}.tree-line:hover{background:var(--secondary-background-color,#eee)}.tree-line .object-link{flex-basis:28px;width:28px;--mdc-icon-size:18px}.tree-line .conflict-jump{padding:4px;font-size:.8em}
       #editor-dialog #object::after{display:none}
-      @media(max-width:700px){#editor-dialog .object-filters{flex-wrap:nowrap;align-content:normal;overflow-x:auto;white-space:nowrap}#editor-dialog .object-filters > *{flex-shrink:0}#editor-dialog[open]{grid-template-rows:32px 40px minmax(0,1fr) 56px}.tree-layout{grid-template-columns:1fr;grid-template-rows:minmax(100px,1fr) minmax(220px,1fr);gap:8px}.editor-pane{grid-template-rows:16px 66px 16px 40px 30px minmax(0,1fr)}#editor-dialog #part{height:40px}.editor-pane .tools{font-size:.8em}.tree-select .object-description,.tree-select .object-current-id{display:none}}
+      @media(max-width:700px){#editor-dialog .object-filters{flex-wrap:nowrap;align-content:normal;overflow-x:auto;white-space:nowrap}#editor-dialog .object-filters > *{flex-shrink:0}#editor-dialog[open]{grid-template-rows:32px 40px minmax(0,1fr) 56px}.tree-layout{grid-template-columns:1fr;grid-template-rows:minmax(100px,1fr) minmax(220px,1fr);gap:8px}.editor-pane{grid-template-rows:16px 66px auto 40px auto minmax(0,1fr)}#editor-dialog #segment{height:40px}.editor-pane .tools{font:inherit}.tree-select .object-description,.tree-select .object-current-id{display:none}}
       .virtual-tree-surface{position:relative;width:100%;contain:layout style}.virtual-tree-item{position:absolute;inset-inline:0;overflow:hidden;box-sizing:border-box}.virtual-tree-item > .tree-line{height:100%;content-visibility:visible;contain-intrinsic-size:none}.virtual-tree-item .tree-select{height:100%;box-sizing:border-box;align-content:center;overflow:hidden}.virtual-tree-item .object-own{flex-wrap:nowrap;overflow:hidden}.virtual-tree-item .id-chip{flex-shrink:0}#object-list{padding:0;position:relative;overflow-anchor:none}
     </style><header><ha-menu-button></ha-menu-button><h1>Entity ID Manager</h1></header><main><h2>${w.title}</h2><p>${w.intro}</p><div class="main-actions"><button id="open" class="primary">${w.open}</button><button id="preview-open" class="primary">${w.preview}</button></div><label class="automatic"><input id="automatic" type="checkbox" disabled> ${w.automatic}</label><p id="status" role="status"></p></main>
-    <dialog id="editor-dialog"><div class="heading"><button id="close" aria-label="${w.close}">×</button><h2>${w.title}</h2></div><div class="object-filters" role="group" aria-label="${this.words === WORDS.ru ? "Фильтр списка" : "List filter"}"><span>${this.words === WORDS.ru ? "Фильтр:" : "Filter:"}</span><button id="filter-all"></button><button id="conflict-filter"></button><button id="filter-scope" hidden></button><span id="check-status" role="status"></span></div><div class="tree-layout"><section class="tree-pane"><div id="object-dropdown"><input id="object-search" type="search" aria-label="${w.search}" placeholder="${w.search}" autocomplete="off"><div id="object-list" role="tree" aria-label="${w.choose}"></div></div></section><section class="editor-pane"><label id="object-label">${w.choose}</label><div class="picker"><div class="selected-row"><div id="object" class="object-row" aria-labelledby="object-label"></div><span id="selected-link"></span></div></div><label for="part">${w.part}</label><input id="part" type="text" autocomplete="off" autocapitalize="none" spellcheck="false"><div class="tools"><label id="omit-label"><input id="omit-part" type="checkbox">${this.words === WORDS.ru ? "Без собственной части" : "No own ID part"}</label><button id="clear">${w.clear}</button><button id="reset">${w.reset}</button><button id="bulk-copy"></button></div><div class="editor-details"><p id="target-id"></p><div id="bulk-choice" hidden><p id="bulk-question"></p><button id="bulk-empty"></button><button id="bulk-all"></button><button id="bulk-cancel"></button></div><div id="bulk-result" hidden><span id="bulk-message" role="status"></span><button id="bulk-undo"></button></div><p id="validation" class="error" role="status"></p><div id="conflict-detail" class="error" role="status"></div><button id="conflict-more" hidden></button><button id="copy-id" hidden></button><p id="error" class="error" role="alert"></p></div></section></div><div class="editor-footer"><p id="count" class="count"></p><div class="actions"><button id="cancel">${w.cancel}</button><button id="confirm" class="primary">${w.confirm}</button></div></div></dialog><dialog id="preview-dialog"><div class="heading"><button id="preview-close" aria-label="${w.close}">×</button><h2>${w.preview}</h2></div><p>${w.references}</p><div id="preview-rows"></div><p id="preview-error" class="error" role="alert"></p><div class="actions"><button id="preview-cancel">${w.cancel}</button><button id="preview-apply" class="primary" disabled>${w.apply}</button></div></dialog>`;
+    <dialog id="editor-dialog"><div class="heading"><button id="close" aria-label="${w.close}">×</button><h2>${w.title}</h2></div><div class="object-filters" role="group" aria-label="${this.words === WORDS.ru ? "Фильтр списка" : "List filter"}"><span>${this.words === WORDS.ru ? "Фильтр:" : "Filter:"}</span><button id="filter-all"></button><button id="conflict-filter"></button><button id="filter-scope" hidden></button><span id="check-status" role="status"></span></div><div class="tree-layout"><section class="tree-pane"><div id="object-dropdown"><input id="object-search" type="search" aria-label="${w.search}" placeholder="${w.search}" autocomplete="off"><div id="object-list" role="tree" aria-label="${w.choose}"></div></div></section><section class="editor-pane"><label id="object-label">${w.choose}</label><div class="picker"><div class="selected-row"><div id="object" class="object-row" aria-labelledby="object-label"></div><span id="selected-link"></span></div></div><div class="segment-heading"><label for="segment">${w.segment}</label><label id="omit-label"><input id="omit-segment" type="checkbox"><span>${this.words === WORDS.ru ? "Без собственного сегмента ID" : "No own ID segment"}</span></label></div><input id="segment" type="text" autocomplete="off" autocapitalize="none" spellcheck="false"><div class="tools"><button id="clear">${w.clear}</button><button id="reset">${w.reset}</button><button id="bulk-copy"></button></div><div class="editor-details"><p id="target-id"></p><div id="bulk-choice" hidden><p id="bulk-question"></p><button id="bulk-empty"></button><button id="bulk-all"></button><button id="bulk-cancel"></button></div><div id="bulk-result" hidden><span id="bulk-message" role="status"></span><button id="bulk-undo"></button></div><p id="validation" class="error" role="status"></p><div id="conflict-detail" class="error" role="status"></div><button id="conflict-more" hidden></button><button id="copy-id" hidden></button><p id="error" class="error" role="alert"></p></div></section></div><div class="editor-footer"><p id="count" class="count"></p><div class="actions"><button id="cancel">${w.cancel}</button><button id="confirm" class="primary">${w.confirm}</button></div></div></dialog><dialog id="preview-dialog"><div class="heading"><button id="preview-close" aria-label="${w.close}">×</button><h2>${w.preview}</h2></div><p>${w.references}</p><div id="preview-rows"></div><p id="preview-error" class="error" role="alert"></p><div class="actions"><button id="preview-cancel">${w.cancel}</button><button id="preview-apply" class="primary" disabled>${w.apply}</button></div></dialog>`;
     const q = (s) => this.shadowRoot.querySelector(s);
     const menu = q("ha-menu-button");
     if (menu) menu.hass = this._hass;
@@ -684,11 +684,11 @@ export class IDManagerPanel extends (globalThis.HTMLElement || class {}) {
         else this.focusTreeRow(this.treeModel.rows[index + 1]?.key);
       }
     };
-    q("#omit-part").onchange = (e) => {
+    q("#omit-segment").onchange = (e) => {
       this.store.omit(this.selected.entities, e.target.checked);
       this.fill();
     };
-    q("#part").oninput = (e) => {
+    q("#segment").oninput = (e) => {
       this.store.set(this.kind, this.selected[this.kind], e.target.value);
       this.refresh();
     };
@@ -1100,13 +1100,13 @@ export class IDManagerPanel extends (globalThis.HTMLElement || class {}) {
     if (prefix) {
       const chip = document.createElement("span");
       chip.className = "id-chip prefix";
-      for (const [index, part] of this.store
-        .parentParts(this.kind, object)
+      for (const [index, segment] of this.store
+        .parentSegments(this.kind, object)
         .entries()) {
         if (index) chip.append("/");
         const span = document.createElement("span");
-        span.className = `parent-part ${part.kind}`;
-        span.textContent = part.value;
+        span.className = `parent-segment ${segment.kind}`;
+        span.textContent = segment.value;
         chip.append(span);
       }
       parentRow.append(chip);
@@ -1114,7 +1114,7 @@ export class IDManagerPanel extends (globalThis.HTMLElement || class {}) {
     for (const segment of this.store.segments(this.kind, object.id)) {
       const chip = document.createElement("span");
       chip.className = `id-chip ${segment.kind}`;
-      chip.textContent = segment.value === "-" ? (this.words === WORDS.ru ? "Без части" : "No part") : segment.value;
+      chip.textContent = segment.value === "-" ? (this.words === WORDS.ru ? "Без сегмента" : "No segment") : segment.value;
       ownRow.append(chip);
     }
   }
@@ -1242,7 +1242,7 @@ export class IDManagerPanel extends (globalThis.HTMLElement || class {}) {
   closePicker() {}
   fill() {
     const value = this.store.value(this.kind, this.selected[this.kind]);
-    this.shadowRoot.querySelector("#part").value = value === "-" ? "" : value;
+    this.shadowRoot.querySelector("#segment").value = value === "-" ? "" : value;
     this.refresh();
   }
   refresh({ tree = true } = {}) {
@@ -1332,12 +1332,12 @@ export class IDManagerPanel extends (globalThis.HTMLElement || class {}) {
       this.busy || !this.store.valid || !this.store.count;
     q("#confirm").textContent = this.busy ? w.saving : w.confirm;
     q("#omit-label").hidden = this.kind !== "entities";
-    q("#omit-part").checked = this.kind === "entities" && this.store.value(this.kind, id) === "-";
-    q("#omit-part").disabled = this.busy || !id;
+    q("#omit-segment").checked = this.kind === "entities" && this.store.value(this.kind, id) === "-";
+    q("#omit-segment").disabled = this.busy || !id;
     const target = this.kind === "entities" ? this.store.entityTarget(current) : "";
     q("#target-id").hidden = !target;
     q("#target-id").textContent = target ? `${this.words === WORDS.ru ? "Итоговый ID" : "Resulting ID"}: ${target}` : "";
-    q("#part").disabled = this.busy || !id;
+    q("#segment").disabled = this.busy || !id;
     q("#object").disabled = this.busy || !id;
     q("#clear").disabled = this.busy || !id || !this.store.value(this.kind, id);
     const namesakes = this.store.namesakeTargets(this.kind, id, true);
@@ -1347,7 +1347,7 @@ export class IDManagerPanel extends (globalThis.HTMLElement || class {}) {
       `${this.words === WORDS.ru ? "Для одноимённых" : "Apply to same name"} (${namesakes.length})`;
     q("#bulk-copy").hidden = this.kind === "areas";
     q("#bulk-copy").disabled =
-      this.busy || !namesakes.length || !value || !(PART.test(value) || (this.kind === "entities" && value === "-"));
+      this.busy || !namesakes.length || !value || !(SEGMENT.test(value) || (this.kind === "entities" && value === "-"));
     if (
       this.bulkPending &&
       (this.bulkPending.key !== this.kind ||
@@ -1358,8 +1358,8 @@ export class IDManagerPanel extends (globalThis.HTMLElement || class {}) {
     const ruBulk = this.words === WORDS.ru;
     q("#bulk-choice").hidden = !this.bulkPending;
     q("#bulk-question").textContent = ruBulk
-      ? "У части одноимённых объектов уже задана другая часть ID. Какие значения заменить?"
-      : "Some matching objects already have different ID parts. Which values should be replaced?";
+      ? "У некоторых одноимённых объектов уже задан другой сегмент ID. Какие значения заменить?"
+      : "Some matching objects already have different ID segments. Which values should be replaced?";
     q("#bulk-empty").textContent = `${ruBulk ? "Только незаданные" : "Unset only"} (${unsetNamesakes.length})`;
     q("#bulk-all").textContent = `${ruBulk ? "Заменить у всех" : "Replace all"} (${namesakes.length})`;
     q("#bulk-cancel").textContent = w.cancel;

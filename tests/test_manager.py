@@ -12,7 +12,7 @@ from homeassistant.helpers import entity_registry as er
 
 from custom_components.entity_id_manager.config_flow import OptionsFlow
 from custom_components.entity_id_manager.manager import Manager
-from custom_components.entity_id_manager.naming import target_id, validate_part
+from custom_components.entity_id_manager.naming import target_id, validate_segment
 
 
 @pytest.fixture
@@ -78,7 +78,7 @@ async def test_rename_and_stable_overrides(ctx):
     hass, entry, area, device, entity = await ctx()
     loader.async_setup(hass)
     frame.async_setup(hass)
-    defaults = snapshot(hass, entry)["objects"]["entities"][0]["default_parts"]
+    defaults = snapshot(hass, entry)["objects"]["entities"][0]["default_segments"]
     assert defaults == {"area": "vannaia", "device": "neptun", "suffix": "water_leak"}
     manager = Manager(hass, entry)
     plan = manager.snapshot()
@@ -184,8 +184,8 @@ async def test_options_forms_and_apply(ctx):
     form["data_schema"]({"object_id": entity.id})
     value = await flow.async_step_entity({"object_id": entity.id})
     assert value["description_placeholders"]["object"] == entity.entity_id
-    invalid = await flow.async_step_value({"part": "Неверно"})
-    assert invalid["errors"]["part"] == "invalid_part"
+    invalid = await flow.async_step_value({"segment": "Неверно"})
+    assert invalid["errors"]["segment"] == "invalid_segment"
     preview = await flow.async_step_preview()
     assert preview["type"] == "form"
     empty = await flow.async_step_preview({"selected": []})
@@ -226,24 +226,24 @@ def test_validation():
     assert target_id("sensor", "bathroom", "neptun", "battery") == "sensor.bathroom_neptun_battery"
     for bad in ["Ванная", "a.b", "a-b", "123", "Upper", "a/b"]:
         with pytest.raises(ValueError):
-            validate_part(bad)
+            validate_segment(bad)
 
 
 @pytest.mark.asyncio
-async def test_saved_parts_and_removal(ctx):
+async def test_saved_segments_and_removal(ctx):
     hass, entry, area, device, entity = await ctx()
     flow = OptionsFlow()
     flow.hass = hass
     flow.handler = entry.entry_id
     await flow.async_step_area({"object_id": area.id})
-    saved = await flow.async_step_value({"part": "washroom"})
+    saved = await flow.async_step_value({"segment": "washroom"})
     assert saved["data"]["areas"][area.id] == "washroom"
     # Saving settings alone never renames an entity.
     assert er.async_get(hass).async_get(entity.entity_id)
     hass.config_entries.async_update_entry(entry, options=saved["data"])
     assert Manager(hass, entry).snapshot()[0].new == "binary_sensor.washroom_neptun_water_leak"
     await flow.async_step_area({"object_id": area.id})
-    removed = await flow.async_step_value({"part": ""})
+    removed = await flow.async_step_value({"segment": ""})
     assert area.id not in removed["data"]["areas"]
     assert removed["data"]["devices"][device.id] == "neptun"
     await hass.async_stop()
@@ -367,7 +367,7 @@ async def test_real_integration_setup_and_options(tmp_path, monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_selectors_show_saved_parts(ctx):
+async def test_selectors_show_saved_segments(ctx):
     hass, entry, area, device, entity = await ctx()
     flow = OptionsFlow()
     flow.hass = hass

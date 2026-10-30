@@ -13,7 +13,7 @@ from homeassistant.helpers import entity_registry as er
 from homeassistant.util import slugify
 
 from .const import DOMAIN
-from .naming import validate_part
+from .naming import validate_segment
 
 KEYS = ("areas", "devices", "entities")
 
@@ -100,7 +100,7 @@ def objects(hass, fallbacks=None):
                 "id": obj.id,
                 "name": er.async_get_unprefixed_name(hass, obj) or obj.entity_id,
                 "entity_id": obj.entity_id,
-                "default_parts": {
+                "default_segments": {
                     "area": slugify(area.name) if area else "",
                     "device": slugify(device.name_by_user or device.name or "device")
                     if device
@@ -149,15 +149,15 @@ def draft_options(hass, entry, changes):
         section = options.setdefault(key, {})
         for object_id, value in values.items():
             if not isinstance(value, str):
-                raise EditError("invalid_part", "ID part must be a string")
+                raise EditError("invalid_segment", "ID segment must be a string")
             try:
-                part = "-" if key == "entities" and value == "-" else validate_part(value)
+                segment = "-" if key == "entities" and value == "-" else validate_segment(value)
             except ValueError as err:
-                raise EditError("invalid_part", str(err)) from err
-            if object_id not in available[key] and part:
+                raise EditError("invalid_segment", str(err)) from err
+            if object_id not in available[key] and segment:
                 raise EditError("missing_object", "Object no longer exists")
-            if part:
-                section[object_id] = part
+            if segment:
+                section[object_id] = segment
             else:
                 section.pop(object_id, None)
     return options

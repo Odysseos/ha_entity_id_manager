@@ -37,7 +37,7 @@ try {
       if(msg.type==='entity_id_manager/preview')return [{registry_id:'valid',old:'sensor.old',new:'sensor.next',conflict:''},{registry_id:'blocked',old:'sensor.other',new:'sensor.taken',conflict:'occupied'}];
       if(msg.type==='entity_id_manager/apply')return {count:msg.rows.length};
       if(window.test.fail)throw {code:'stale_editor'};
-      for(const[k,v]of Object.entries(msg.changes))for(const[id,part]of Object.entries(v)){if(part)snapshot.mappings[k][id]=part;else delete snapshot.mappings[k][id];}
+      for(const[k,v]of Object.entries(msg.changes))for(const[id,segment]of Object.entries(v)){if(segment)snapshot.mappings[k][id]=segment;else delete snapshot.mappings[k][id];}
       snapshot.revision='r2';return structuredClone(snapshot);
     }};
     </script></body></html>`,
@@ -80,42 +80,42 @@ try {
     await q("#object .object-current-id").textContent(),
     "sensor.test",
   );
-  await q("#part").fill("temperature");
+  await q("#segment").fill("temperature");
   await select("devices", "d");
-  assert.equal(await q("#part").inputValue(), "neptun");
-  await q("#part").fill("guard");
+  assert.equal(await q("#segment").inputValue(), "neptun");
+  await q("#segment").fill("guard");
   await select("areas", "b");
-  await q("#part").fill("bathroom");
+  await q("#segment").fill("bathroom");
   await select("entities", "e");
-  assert.equal(await q("#part").inputValue(), "temperature");
+  assert.equal(await q("#segment").inputValue(), "temperature");
   assert.deepEqual(await layout(), initial);
-  await q("#omit-part").check();
-  assert.equal(await q("#part").inputValue(), "");
-  await q("#part").focus();
-  assert.equal(await q("#omit-part").isChecked(), true);
-  await q("#omit-part").uncheck();
-  assert.equal(await q("#part").inputValue(), "temperature");
-  await q("#omit-part").check();
+  await q("#omit-segment").check();
+  assert.equal(await q("#segment").inputValue(), "");
+  await q("#segment").focus();
+  assert.equal(await q("#omit-segment").isChecked(), true);
+  await q("#omit-segment").uncheck();
+  assert.equal(await q("#segment").inputValue(), "temperature");
+  await q("#omit-segment").check();
   await select("areas", "b");
   assert.equal(await q("#omit-label").isVisible(), false);
   await select("entities", "e");
-  assert.equal(await q("#omit-part").isChecked(), true);
-  await q("#part").fill("temperature");
-  assert.equal(await q("#omit-part").isChecked(), false);
+  assert.equal(await q("#omit-segment").isChecked(), true);
+  await q("#segment").fill("temperature");
+  assert.equal(await q("#omit-segment").isChecked(), false);
   await q("#bulk-copy").click();
   assert.equal(await q("#bulk-choice").isVisible(), true);
   await q("#bulk-all").click();
   assert.match(await q("#bulk-copy").textContent(), /\(0\)/);
   assert.equal(await q("#bulk-copy").isDisabled(), true);
   await select("entities", "e2");
-  assert.equal(await q("#part").inputValue(), "temperature");
+  assert.equal(await q("#segment").inputValue(), "temperature");
   assert.equal(await q("#bulk-result").isVisible(), false);
   await select("entities", "e");
   assert.equal(await q("#bulk-result").isVisible(), true);
   await q("#bulk-undo").click();
   await select("entities", "e2");
   assert.equal(await q("#bulk-result").isVisible(), false);
-  assert.equal(await q("#part").inputValue(), "previous");
+  assert.equal(await q("#segment").inputValue(), "previous");
   await q("#object-search").fill("Temperature parameter");
   await page.waitForFunction(
     () =>
@@ -131,7 +131,7 @@ try {
   const areaToggle = q('.tree-toggle[aria-label="Свернуть: Гостиная"]');
   await areaToggle.click();
   assert.equal(await q('.tree-select[data-object-id="e"]').count(), 0);
-  assert.equal(await q("#part").inputValue(), "temperature");
+  assert.equal(await q("#segment").inputValue(), "temperature");
   await q('.tree-toggle[aria-label="Развернуть: Гостиная"]').click();
   assert.equal(await q('.tree-select[data-object-id="e"]').count(), 1);
   await page.evaluate(() => {
@@ -152,7 +152,7 @@ try {
       ],
     };
   });
-  await q("#part").fill("test");
+  await q("#segment").fill("test");
   await q("#conflict-filter").filter({ hasText: "(2)" }).waitFor();
   await q("#conflict-filter").click();
   assert.equal(await q('.tree-select[data-kind-id="entities"]').count(), 2);
@@ -178,11 +178,29 @@ try {
   assert.equal(saves[0].changes.areas.b, "bathroom");
   await q("#open").click();
   await select("entities", "e");
-  await q("#part").fill("discard");
+  await q("#segment").fill("discard");
   await q("#cancel").click();
   await q("#open").click();
   await select("entities", "e");
-  assert.equal(await q("#part").inputValue(), "test");
+  assert.equal(await q("#segment").inputValue(), "test");
+  const headingStyle = await q(".segment-heading").evaluate((node) => {
+    const caption = node.querySelector('label[for="segment"]');
+    const option = node.querySelector("#omit-label span");
+    const rangeBottom = (element) => {
+      const range = document.createRange();
+      range.selectNodeContents(element);
+      return range.getBoundingClientRect().bottom;
+    };
+    const style = (element) => {
+      const value = getComputedStyle(element);
+      return [value.fontFamily, value.fontSize, value.fontWeight];
+    };
+    return { caption: style(caption), option: style(option), delta: Math.abs(rangeBottom(caption) - rangeBottom(option)) };
+  });
+  assert.deepEqual(headingStyle.caption, headingStyle.option);
+  assert.ok(headingStyle.delta < 1, JSON.stringify(headingStyle));
+  for (const selector of [".segment-heading", ".tools"])
+    assert.ok(await q(selector).evaluate(node => node.scrollWidth <= node.clientWidth + 1));
   if (process.env.EDITOR_SCREENSHOT)
     await page.screenshot({
       path: process.env.EDITOR_SCREENSHOT.replace(".png", "-desktop.png"),
@@ -197,6 +215,8 @@ try {
   );
   assert.ok(await q("#confirm").isVisible());
   assert.ok(await q("#object-list").evaluate((node) => node.clientHeight > 80));
+  for (const selector of [".segment-heading", ".tools"])
+    assert.ok(await q(selector).evaluate(node => node.scrollWidth <= node.clientWidth + 1));
   if (process.env.EDITOR_SCREENSHOT)
     await page.screenshot({ path: process.env.EDITOR_SCREENSHOT });
   await q("#cancel").click();
@@ -239,7 +259,7 @@ try {
         renders++;
         return render(...args);
       };
-      const input = root.querySelector("#part"),
+      const input = root.querySelector("#segment"),
         samples = [];
       for (const value of [
         "t",
@@ -295,16 +315,16 @@ try {
       panel.store.set("entities", "perf4999", "changed_offscreen");
       const state = panel.treeModel.state("entities:perf4999");
       return {
-        parts: state.parts,
+        segments: state.segments,
         exists: !!panel.shadowRoot.querySelector(
           '.tree-select[data-object-id="perf4999"]',
         ),
       };
     });
   assert.equal(offscreen.exists, false);
-  assert.equal(offscreen.parts.at(-1).value, "changed_offscreen");
+  assert.equal(offscreen.segments.at(-1).value, "changed_offscreen");
   await select("entities", "perf4999");
-  assert.equal(await q("#part").inputValue(), "changed_offscreen");
+  assert.equal(await q("#segment").inputValue(), "changed_offscreen");
   assert.ok((await q('[role="treeitem"]').count()) < 20);
   await q("#object-list").focus();
   await page.keyboard.press("End");

@@ -12,7 +12,7 @@ from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers import selector
 
 from .const import DOMAIN
-from .naming import validate_part
+from .naming import validate_segment
 
 
 class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
@@ -92,13 +92,13 @@ class OptionsFlow(config_entries.OptionsFlow):
         errors = {}
         if user_input is not None:
             try:
-                value = user_input.get("part", "")
-                part = "-" if key == "entities" and value == "-" else validate_part(value)
+                value = user_input.get("segment", "")
+                segment = "-" if key == "entities" and value == "-" else validate_segment(value)
             except ValueError:
-                errors["part"] = "invalid_part"
+                errors["segment"] = "invalid_segment"
             else:
-                if part:
-                    values[self.object_id] = part
+                if segment:
+                    values[self.object_id] = segment
                 else:
                     values.pop(self.object_id, None)
                 return self.async_create_entry(title="", data=options)
@@ -116,7 +116,7 @@ class OptionsFlow(config_entries.OptionsFlow):
             errors=errors,
             description_placeholders={"object": str(name)},
             data_schema=vol.Schema(
-                {vol.Optional("part", default=values.get(self.object_id, "")): str}
+                {vol.Optional("segment", default=values.get(self.object_id, "")): str}
             ),
         )
 

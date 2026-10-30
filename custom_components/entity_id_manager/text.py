@@ -1,4 +1,4 @@
-"""Editable saved ID parts, exposed under the integration."""
+"""Editable saved ID segments, exposed under the integration."""
 
 from copy import deepcopy
 
@@ -10,7 +10,7 @@ from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 
 from .const import DOMAIN
-from .naming import validate_part
+from .naming import validate_segment
 
 KINDS = {"areas": "area", "devices": "device", "entities": "entity"}
 
@@ -26,7 +26,7 @@ async def async_setup_entry(hass, entry, async_add_entities):
                 token = (key, object_id)
                 if token not in added:
                     added.add(token)
-                    new.append(IDPart(entry, key, object_id))
+                    new.append(IDSegment(entry, key, object_id))
         if new:
             async_add_entities(new)
 
@@ -36,7 +36,7 @@ async def async_setup_entry(hass, entry, async_add_entities):
     sync()
 
 
-class IDPart(TextEntity):
+class IDSegment(TextEntity):
     _attr_should_poll = False
     _attr_native_min = 0
     _attr_native_max = 200
@@ -88,11 +88,11 @@ class IDPart(TextEntity):
         )
 
     async def async_set_value(self, value):
-        part = "-" if self.key == "entities" and value == "-" else validate_part(value)
+        segment = "-" if self.key == "entities" and value == "-" else validate_segment(value)
         options = deepcopy(dict(self.entry.options))
         values = options.setdefault(self.key, {})
-        if part:
-            values[self.object_id] = part
+        if segment:
+            values[self.object_id] = segment
         else:
             values.pop(self.object_id, None)
         self.hass.config_entries.async_update_entry(self.entry, options=options)

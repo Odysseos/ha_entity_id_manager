@@ -76,14 +76,14 @@ assert.equal(
   "<area_id>/radiator",
 );
 assert.deepEqual(
-  store.parentParts("entities", { area_id: "a", device_id: "d" }),
+  store.parentSegments("entities", { area_id: "a", device_id: "d" }),
   [
     { value: "<area_id>", kind: "added" },
     { value: "radiator", kind: "added" },
   ],
 );
 store.reset("areas", "a");
-assert.deepEqual(store.parentParts("devices", { area_id: "a" }), [
+assert.deepEqual(store.parentSegments("devices", { area_id: "a" }), [
   { value: "living_room", kind: "prefix" },
 ]);
 console.log("Editor drafts: passed");
@@ -197,9 +197,9 @@ const alreadyNamed = new DraftStore({
   objects: { areas: [], devices: [
     { id: "source", name: "Сенсор" }, { id: "correct", name: "Сенсор" }, { id: "wrong", name: "Сенсор" },
   ], entities: [
-    { id: "sourceEntity", name: "Влажность", device_id: "source", area_id: "room", entity_id: "sensor.source", default_parts: { area: "room", device: "sensor", suffix: "vlazhnost" } },
-    { id: "correctEntity", name: "Влажность", device_id: "correct", area_id: "room", entity_id: "sensor.room_sensor_humidity", default_parts: { area: "room", device: "sensor", suffix: "humidity" } },
-    { id: "wrongEntity", name: "Влажность", device_id: "wrong", area_id: "room", entity_id: "sensor.wrong", default_parts: { area: "room", device: "sensor", suffix: "humidity" } },
+    { id: "sourceEntity", name: "Влажность", device_id: "source", area_id: "room", entity_id: "sensor.source", default_segments: { area: "room", device: "sensor", suffix: "vlazhnost" } },
+    { id: "correctEntity", name: "Влажность", device_id: "correct", area_id: "room", entity_id: "sensor.room_sensor_humidity", default_segments: { area: "room", device: "sensor", suffix: "humidity" } },
+    { id: "wrongEntity", name: "Влажность", device_id: "wrong", area_id: "room", entity_id: "sensor.wrong", default_segments: { area: "room", device: "sensor", suffix: "humidity" } },
   ] },
 });
 assert.deepEqual(alreadyNamed.namesakeTargets("entities", "sourceEntity", true).map(o => o.id), ["wrongEntity"]);
@@ -272,15 +272,15 @@ console.log("Unified tree grouping: passed");
 
 const model = new TreeModel(humidity);
 model.update({
-  query: "new_unique_part",
+  query: "new_unique_segment",
   conflictOnly: false,
   conflicts: {},
   scope: null,
 });
 assert.equal(model.rows.length, 0);
-humidity.set("entities", "h2", "new_unique_part");
+humidity.set("entities", "h2", "new_unique_segment");
 assert.ok(model.rows.some((row) => row.key === "entities:h2"));
-assert.equal(model.state("entities:h2").parts.at(-1).value, "new_unique_part");
+assert.equal(model.state("entities:h2").segments.at(-1).value, "new_unique_segment");
 humidity.undoBulk();
 model.destroy();
 console.log("Nonvisual model changes synchronously without DOM: passed");

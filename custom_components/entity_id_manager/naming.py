@@ -3,12 +3,12 @@
 import re
 from dataclasses import dataclass
 
-PART = re.compile(r"[a-z][a-z0-9_]*\Z", re.ASCII)
+SEGMENT = re.compile(r"[a-z][a-z0-9_]*\Z", re.ASCII)
 
 
-def validate_part(value):
+def validate_segment(value):
     value = value.strip()
-    if value and not PART.fullmatch(value):
+    if value and not SEGMENT.fullmatch(value):
         raise ValueError("Use lowercase ASCII letters, digits and underscores; start with a letter")
     return value
 
@@ -23,12 +23,12 @@ class Rename:
 
 def target_id(domain, area, device, suffix):
     omit = suffix == "-"
-    parts = [part for part in (area, device, "" if omit else suffix) if part]
-    if not parts or (not suffix and not omit):
+    segments = [segment for segment in (area, device, "" if omit else suffix) if segment]
+    if not segments or (not suffix and not omit):
         raise ValueError("A suffix is required")
-    for part in parts:
-        validate_part(part)
-    result = domain + "." + "_".join(parts)
+    for segment in segments:
+        validate_segment(segment)
+    result = domain + "." + "_".join(segments)
     if len(result) > 255:
         raise ValueError("Entity ID is too long")
     return result

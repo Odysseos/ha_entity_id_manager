@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.6.2
+
+- Separate the DOM-free tree model from the virtual viewport renderer.
+- Update the model synchronously when drafts change, including offscreen rows.
+- Create DOM nodes only for rows intersecting the viewport; recycle visible nodes and discard offscreen nodes during scrolling.
+- Index object names for bulk operations and avoid scanning all tree rows on each keystroke.
+- Test viewport bounds, offscreen edits and typing with 5,000 entities.
+
 ## 0.6.1
 
 - Update only affected tree rows while editing ID parts instead of rebuilding the whole tree on each keystroke and conflict response.

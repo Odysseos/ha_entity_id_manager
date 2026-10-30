@@ -113,10 +113,25 @@ Object.assign(WORDS.en, {
 
 export class DraftStore {
   constructor(snapshot) {
+    this.listeners = new Set();
+    this.batching = 0;
     this.revision = snapshot.revision;
     this.versions = {};
     this.bulkUndo = null;
     this.objects = structuredClone(snapshot.objects);
+    this.treeDirty = new Set();
+    this.byId = {};
+    this.byName = {};
+    for (const key of KEYS) {
+      this.byId[key] = new Map();
+      this.byName[key] = new Map();
+      for (const object of this.objects[key]) {
+        this.byId[key].set(object.id, object);
+        const name = object.name.trim().normalize("NFC").toLocaleLowerCase();
+        if (!this.byName[key].has(name)) this.byName[key].set(name, []);
+        this.byName[key].get(name).push(object);
+      }
+    }
     this.saved = structuredClone(snapshot.mappings);
     this.drafts = Object.fromEntries(KEYS.map((k) => [k, {}]));
   }
@@ -127,9 +142,18 @@ export class DraftStore {
   }
   set(key, id, value) {
     this.versions[`${key}:${id}`] = (this.versions[`${key}:${id}`] || 0) + 1;
+    this.treeDirty.add(`${key}:${id}`);
     const next = value.trim();
     if (next === (this.saved[key][id] || "")) delete this.drafts[key][id];
     else this.drafts[key][id] = next;
+    this.emit();
+  }
+  subscribe(listener) {
+    this.listeners.add(listener);
+    return () => this.listeners.delete(listener);
+  }
+  emit() {
+    if (!this.batching) for (const listener of this.listeners) listener();
   }
   reset(key, id) {
     this.set(key, id, this.saved[key][id] || "");
@@ -169,19 +193,18 @@ export class DraftStore {
   }
   namesakes(key, id) {
     if (key === "areas") return [];
-    const current = this.objects[key].find((object) => object.id === id);
+    const current = this.byId[key].get(id);
     if (!current) return [];
-    const normalize = (name) =>
-      name.trim().normalize("NFC").toLocaleLowerCase();
-    return this.objects[key].filter(
-      (object) =>
-        object.id !== id && normalize(object.name) === normalize(current.name),
+    const name = current.name.trim().normalize("NFC").toLocaleLowerCase();
+    return (this.byName[key].get(name) || []).filter(
+      (object) => object.id !== id,
     );
   }
   copyToNamesakes(key, id, replace) {
     const after = this.value(key, id);
     if (!after || !PART.test(after)) return 0;
     const parts = [];
+    this.batching++;
     for (const object of this.namesakes(key, id)) {
       const before = this.value(key, object.id);
       if (before === after || (before && !replace)) continue;
@@ -192,6 +215,8 @@ export class DraftStore {
         version: this.versions[`${key}:${object.id}`],
       });
     }
+    this.batching--;
+    this.emit();
     this.bulkUndo = parts.length ? { key, parts } : this.bulkUndo;
     return parts.length;
   }
@@ -199,11 +224,14 @@ export class DraftStore {
     if (!this.bulkUndo) return 0;
     const { key, parts } = this.bulkUndo;
     let count = 0;
+    this.batching++;
     for (const part of parts) {
       if (this.versions[`${key}:${part.id}`] !== part.version) continue;
       this.set(key, part.id, part.before);
       count++;
     }
+    this.batching--;
+    this.emit();
     this.bulkUndo = null;
     return count;
   }
@@ -262,6 +290,232 @@ export function buildTree(objects) {
     roots.push(missing);
   }
   return roots;
+}
+
+export class TreeModel {
+  constructor(store, noArea = "No area") {
+    this.store = store;
+    this.noArea = noArea;
+    this.roots = buildTree(store.objects);
+    this.nodes = new Map();
+    this.closed = new Set();
+    this.query = "";
+    this.conflictOnly = false;
+    this.conflicts = {};
+    this.scope = null;
+    this.revision = 0;
+    const index = (nodes, parentKey = null, depth = 0) => {
+      for (const node of nodes) {
+        node.parentKey = parentKey;
+        node.depth = depth;
+        this.nodes.set(node.key, node);
+        index(node.children, node.key, depth + 1);
+      }
+    };
+    index(this.roots);
+    this.unsubscribe = store.subscribe(() => {
+      this.revision++;
+      if (this.query) this.rebuild();
+    });
+    this.rebuild();
+  }
+  state(key) {
+    const node = this.nodes.get(key);
+    return node?.object
+      ? {
+          parts: this.store.segments(node.kind, node.object.id),
+          parents: this.store.parentParts(node.kind, node.object),
+          conflicts: this.conflicts[node.object.id] || [],
+        }
+      : null;
+  }
+  update({ query, conflictOnly, conflicts, scope }) {
+    const next = query.trim().toLocaleLowerCase();
+    if (
+      next === this.query &&
+      conflictOnly === this.conflictOnly &&
+      conflicts === this.conflicts &&
+      scope === this.scope
+    )
+      return;
+    const structural =
+      next !== this.query ||
+      conflictOnly !== this.conflictOnly ||
+      (conflictOnly && (conflicts !== this.conflicts || scope !== this.scope));
+    this.query = next;
+    this.conflictOnly = conflictOnly;
+    this.conflicts = conflicts;
+    this.scope = scope;
+    if (structural) this.rebuild();
+    else this.revision++;
+  }
+  toggle(key) {
+    if (this.query || this.conflictOnly) return;
+    if (this.closed.has(key)) this.closed.delete(key);
+    else this.closed.add(key);
+    this.rebuild();
+  }
+  reveal(key) {
+    let node = this.nodes.get(key);
+    while (node?.parentKey) {
+      this.closed.delete(node.parentKey);
+      node = this.nodes.get(node.parentKey);
+    }
+    this.rebuild();
+  }
+  rebuild() {
+    const filtered = (nodes, ancestor = false) =>
+      nodes.flatMap((node) => {
+        const object = node.object;
+        let match = !this.query || ancestor;
+        if (!match) {
+          const text = object
+            ? [
+                object.name,
+                object.area_name,
+                object.device_name,
+                object.description,
+                object.entity_id,
+                ...this.store
+                  .segments(node.kind, object.id)
+                  .map((part) => part.value),
+                this.store.prefix(node.kind, object),
+              ].join(" ")
+            : this.noArea;
+          match = text.toLocaleLowerCase().includes(this.query);
+        }
+        const children = filtered(node.children, Boolean(this.query && match));
+        const own =
+          match &&
+          (!this.conflictOnly ||
+            (node.kind === "entities" &&
+              this.conflicts[object.id]?.length &&
+              (!this.scope || object[this.scope.field] === this.scope.id)));
+        return own || children.length ? [{ node, children }] : [];
+      });
+    this.rows = [];
+    let top = 0;
+    const flatten = (entries) =>
+      entries.forEach(({ node, children }, index) => {
+        const height =
+          node.kind === "entities"
+            ? 80
+            : node.kind === "devices"
+              ? 64
+              : node.kind === "areas"
+                ? 48
+                : 36;
+        const expanded = Boolean(
+          this.query || this.conflictOnly || !this.closed.has(node.key),
+        );
+        this.rows.push({
+          key: node.key,
+          node,
+          top,
+          height,
+          expanded,
+          hasChildren: children.length > 0,
+          pos: index + 1,
+          size: entries.length,
+        });
+        top += height;
+        if (expanded) flatten(children);
+      });
+    flatten(filtered(this.roots));
+    this.height = top;
+    this.revision++;
+  }
+  destroy() {
+    this.unsubscribe();
+  }
+}
+
+export class VirtualTree {
+  constructor(viewport, create, update) {
+    this.viewport = viewport;
+    this.create = create;
+    this.update = update;
+    this.items = new Map();
+    this.rows = [];
+    this.surface = document.createElement("div");
+    this.surface.className = "virtual-tree-surface";
+    this.surface.setAttribute("role", "presentation");
+    viewport.replaceChildren(this.surface);
+    this.onScroll = () => {
+      if (this.frame) return;
+      this.frame = requestAnimationFrame(() => {
+        this.frame = null;
+        this.render();
+      });
+    };
+    viewport.addEventListener("scroll", this.onScroll, { passive: true });
+    this.resize = new ResizeObserver(() => this.render());
+    this.resize.observe(viewport);
+  }
+  setRows(rows) {
+    this.rows = rows;
+    const last = rows.at(-1);
+    this.surface.style.height = `${last ? last.top + last.height : 0}px`;
+    this.render();
+  }
+  render() {
+    const { rows, viewport } = this;
+    const active = viewport.getRootNode().activeElement;
+    const activeKey = active?.dataset?.nodeKey;
+    const activeToggle = active?.classList?.contains("tree-toggle");
+    const top = viewport.scrollTop,
+      bottom = top + viewport.clientHeight;
+    let low = 0,
+      high = rows.length;
+    while (low < high) {
+      const middle = (low + high) >>> 1;
+      if (rows[middle].top + rows[middle].height <= top) low = middle + 1;
+      else high = middle;
+    }
+    const visible = [];
+    if (viewport.clientHeight)
+      for (let i = low; i < rows.length && rows[i].top < bottom; i++)
+        visible.push(rows[i]);
+    const keys = new Set(visible.map((row) => row.key));
+    for (const [key, element] of this.items)
+      if (!keys.has(key)) {
+        element.remove();
+        this.items.delete(key);
+      }
+    let cursor = this.surface.firstElementChild;
+    for (const row of visible) {
+      let item = this.items.get(row.key);
+      if (!item) {
+        item = this.create(row);
+        this.items.set(row.key, item);
+      }
+      item.style.top = `${row.top}px`;
+      item.style.height = `${row.height}px`;
+      this.update(item, row);
+      if (item !== cursor) this.surface.insertBefore(item, cursor);
+      else cursor = cursor.nextElementSibling;
+    }
+    if (activeKey && !active.isConnected)
+      this.items
+        .get(activeKey)
+        ?.querySelector(activeToggle ? ".tree-toggle" : ".tree-select")
+        ?.focus({ preventScroll: true });
+  }
+  reveal(key) {
+    const row = this.rows.find((row) => row.key === key);
+    if (!row) return;
+    const view = this.viewport;
+    if (row.top < view.scrollTop) view.scrollTop = row.top;
+    else if (row.top + row.height > view.scrollTop + view.clientHeight)
+      view.scrollTop = row.top + row.height - view.clientHeight;
+    this.render();
+  }
+  destroy() {
+    this.resize.disconnect();
+    this.viewport.removeEventListener("scroll", this.onScroll);
+    if (this.frame) cancelAnimationFrame(this.frame);
+    this.items.clear();
+  }
 }
 
 export class IDManagerPanel extends (globalThis.HTMLElement || class {}) {
@@ -331,11 +585,12 @@ export class IDManagerPanel extends (globalThis.HTMLElement || class {}) {
       @media(max-width:600px),(max-height:700px){#editor-dialog{width:calc(100vw - 16px);height:calc(100dvh - 16px);padding:12px;border-radius:18px}.editor-footer{font-size:.85em}.editor-footer .actions button{padding:10px}.editor-footer .count{max-width:45%}}
       @media(max-height:550px){#editor-dialog[open]{grid-template-rows:28px 32px 40px 16px 80px 16px 40px 30px minmax(0,1fr) 48px;gap:2px}#editor-dialog #object{padding:2px 12px}#editor-dialog #part{height:40px}}
       #editor-dialog{width:min(1240px,calc(100vw - 32px))}#editor-dialog[open]{grid-template-rows:32px 44px minmax(0,1fr) 64px}
-      .tree-layout{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:18px;min-height:0}.tree-pane,.editor-pane{min-width:0;min-height:0}.tree-pane{border:1px solid var(--divider-color,#ddd);border-radius:8px;overflow:hidden}.editor-pane{display:grid;grid-template-rows:18px 66px 18px 48px 36px minmax(0,1fr);gap:4px}
+      .tree-layout{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:18px;min-height:0}.tree-pane,.editor-pane{min-width:0;min-height:0}.tree-pane{contain:layout style;border:1px solid var(--divider-color,#ddd);border-radius:8px;overflow:hidden}.editor-pane{display:grid;grid-template-rows:18px 66px 18px 48px 36px minmax(0,1fr);gap:4px}
       #object-dropdown{position:static;display:flex;height:100%;width:100%;border:0;box-shadow:none;border-radius:0;box-sizing:border-box}#object-list{padding:4px 0;overflow:auto;flex:1;min-height:0}#object-search{min-height:42px;padding:10px;line-height:1.2}
       .tree-line{display:flex;align-items:center;min-width:0;box-sizing:border-box}.tree-toggle,.tree-spacer{flex:0 0 24px;width:24px;padding:4px 0;text-align:center}.tree-group-title{padding:8px}.tree-select{flex:1;min-width:0;border-radius:0;text-align:left;padding:4px;grid-template-columns:22px minmax(0,1fr);column-gap:6px;row-gap:2px}.tree-select .object-name{grid-column:2;grid-row:1}.tree-select .object-description{grid-column:2;grid-row:2}.tree-select .object-current-id{grid-column:2;grid-row:3}.tree-select .object-prefix{display:none}.tree-select .object-own{grid-column:2;grid-row:4}.tree-select .object-name,.tree-select .object-description,.tree-select .object-current-id{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.tree-select .object-icon{grid-column:1;grid-row:1 / 3}.tree-select .object-own:empty{display:none}.tree-select.area-row{grid-template-columns:22px minmax(0,1fr)}.tree-select.area-row .object-own{grid-column:2;grid-row:2}.tree-select::after{display:none}[role=treeitem][aria-selected=true] > .tree-line{background:var(--secondary-background-color,#eee)}.tree-line:hover{background:var(--secondary-background-color,#eee)}.tree-line .object-link{flex-basis:28px;width:28px;--mdc-icon-size:18px}.tree-line .conflict-jump{padding:4px;font-size:.8em}
       #editor-dialog #object::after{display:none}
       @media(max-width:700px){#editor-dialog .object-filters{flex-wrap:nowrap;align-content:normal;overflow-x:auto;white-space:nowrap}#editor-dialog .object-filters > *{flex-shrink:0}#editor-dialog[open]{grid-template-rows:32px 40px minmax(0,1fr) 56px}.tree-layout{grid-template-columns:1fr;grid-template-rows:minmax(100px,1fr) minmax(220px,1fr);gap:8px}.editor-pane{grid-template-rows:16px 66px 16px 40px 30px minmax(0,1fr)}#editor-dialog #part{height:40px}.editor-pane .tools{font-size:.8em}.tree-select .object-description,.tree-select .object-current-id{display:none}}
+      .virtual-tree-surface{position:relative;width:100%;contain:layout style}.virtual-tree-item{position:absolute;inset-inline:0;overflow:hidden;box-sizing:border-box}.virtual-tree-item > .tree-line{height:100%;content-visibility:visible;contain-intrinsic-size:none}.virtual-tree-item .tree-select{height:100%;box-sizing:border-box;align-content:center;overflow:hidden}.virtual-tree-item .object-own{flex-wrap:nowrap;overflow:hidden}.virtual-tree-item .id-chip{flex-shrink:0}#object-list{padding:0;position:relative;overflow-anchor:none}
     </style><header><ha-menu-button></ha-menu-button><h1>Entity ID Manager</h1></header><main><h2>${w.title}</h2><p>${w.intro}</p><div class="main-actions"><button id="open" class="primary">${w.open}</button><button id="preview-open" class="primary">${w.preview}</button></div><label class="automatic"><input id="automatic" type="checkbox" disabled> ${w.automatic}</label><p id="status" role="status"></p></main>
     <dialog id="editor-dialog"><div class="heading"><button id="close" aria-label="${w.close}">×</button><h2>${w.title}</h2></div><div class="object-filters" role="group" aria-label="${this.words === WORDS.ru ? "Фильтр списка" : "List filter"}"><span>${this.words === WORDS.ru ? "Фильтр:" : "Filter:"}</span><button id="filter-all"></button><button id="conflict-filter"></button><button id="filter-scope" hidden></button><span id="check-status" role="status"></span></div><div class="tree-layout"><section class="tree-pane"><div id="object-dropdown"><input id="object-search" type="search" aria-label="${w.search}" placeholder="${w.search}" autocomplete="off"><div id="object-list" role="tree" aria-label="${w.choose}"></div></div></section><section class="editor-pane"><label id="object-label">${w.choose}</label><div class="picker"><div class="selected-row"><div id="object" class="object-row" aria-labelledby="object-label"></div><span id="selected-link"></span></div></div><label for="part">${w.part}</label><input id="part" type="text" autocomplete="off" autocapitalize="none" spellcheck="false"><div class="tools"><button id="clear">${w.clear}</button><button id="reset">${w.reset}</button><button id="bulk-copy"></button></div><div class="editor-details"><div id="bulk-choice" hidden><p id="bulk-question"></p><button id="bulk-empty"></button><button id="bulk-all"></button><button id="bulk-cancel"></button></div><div id="bulk-result" hidden><span id="bulk-message" role="status"></span><button id="bulk-undo"></button></div><p id="validation" class="error" role="status"></p><div id="conflict-detail" class="error" role="status"></div><button id="conflict-more" hidden></button><button id="copy-id" hidden></button><p id="error" class="error" role="alert"></p></div></section></div><div class="editor-footer"><p id="count" class="count"></p><div class="actions"><button id="cancel">${w.cancel}</button><button id="confirm" class="primary">${w.confirm}</button></div></div></dialog><dialog id="preview-dialog"><div class="heading"><button id="preview-close" aria-label="${w.close}">×</button><h2>${w.preview}</h2></div><p>${w.references}</p><div id="preview-rows"></div><p id="preview-error" class="error" role="alert"></p><div class="actions"><button id="preview-cancel">${w.cancel}</button><button id="preview-apply" class="primary" disabled>${w.apply}</button></div></dialog>`;
     const q = (s) => this.shadowRoot.querySelector(s);
@@ -351,41 +606,42 @@ export class IDManagerPanel extends (globalThis.HTMLElement || class {}) {
       this.closePreview();
     });
     q("#preview-apply").onclick = () => this.applyPreview();
-    q("#object-search").oninput = () => {
-      clearTimeout(this.searchTimer);
-      this.searchTimer = setTimeout(() => this.renderOptions(), 150);
-    };
+    q("#object-search").oninput = () => this.renderOptions();
+    q("#object-list").tabIndex = 0;
     q("#object-list").onkeydown = (event) => {
-      const buttons = [...q("#object-list").querySelectorAll(".tree-select")];
-      const current = event.target.closest(".tree-select");
-      if (!current) return;
-      const index = buttons.indexOf(current);
+      if (!this.treeModel) return;
+      const current = event.target.closest("[data-node-key]");
+      let index = this.treeModel.rows.findIndex(
+        (row) => row.key === current?.dataset.nodeKey,
+      );
+      if (index < 0) index = 0;
       if (["ArrowDown", "ArrowUp", "Home", "End"].includes(event.key)) {
         event.preventDefault();
-        buttons[
+        index =
           event.key === "Home"
             ? 0
             : event.key === "End"
-              ? buttons.length - 1
+              ? this.treeModel.rows.length - 1
               : Math.max(
                   0,
                   Math.min(
-                    buttons.length - 1,
+                    this.treeModel.rows.length - 1,
                     index + (event.key === "ArrowDown" ? 1 : -1),
                   ),
-                )
-        ]?.focus();
+                );
+        this.focusTreeRow(this.treeModel.rows[index]?.key);
       }
       if (["ArrowLeft", "ArrowRight"].includes(event.key)) {
         event.preventDefault();
-        const item = current.closest('[role="treeitem"]');
-        const toggle = item.querySelector(":scope > .tree-line > .tree-toggle");
-        if (
-          toggle &&
-          (event.key === "ArrowRight") !==
-            (item.getAttribute("aria-expanded") === "true")
-        )
-          toggle.click();
+        const row = this.treeModel.rows[index];
+        if (!row) return;
+        if (row.hasChildren && (event.key === "ArrowRight") !== row.expanded) {
+          this.treeModel.toggle(row.key);
+          this.renderOptions();
+          this.focusTreeRow(row.key);
+        } else if (event.key === "ArrowLeft")
+          this.focusTreeRow(row.node.parentKey);
+        else this.focusTreeRow(this.treeModel.rows[index + 1]?.key);
       }
     };
     q("#part").oninput = (e) => {
@@ -639,13 +895,13 @@ export class IDManagerPanel extends (globalThis.HTMLElement || class {}) {
       this.checkError = "";
       this.selected = {};
       this.kind = "areas";
-      this.treeRoots = buildTree(this.store.objects);
+      this.virtualTree?.destroy();
+      this.treeModel?.destroy();
+      this.treeModel = new TreeModel(this.store, this.words.noArea);
       this.entityLookup = new Map(
         this.store.objects.entities.map((object) => [object.id, object]),
       );
-      this.treeRows = null;
       this.indexedConflicts = null;
-      this.treeClosed = new Set();
       q("#object-search").value = "";
       this.busy = false;
       q("#error").textContent = "";
@@ -810,142 +1066,121 @@ export class IDManagerPanel extends (globalThis.HTMLElement || class {}) {
     }
   }
   renderOptions() {
-    if (!this.store) return;
+    if (!this.store || !this.treeModel) return;
     const root = this.shadowRoot.querySelector("#object-list");
-    const focus = root.querySelector(":focus")?.dataset.nodeKey;
-    const scroll = root.scrollTop;
-    const query = this.shadowRoot
-      .querySelector("#object-search")
-      .value.trim()
-      .toLocaleLowerCase();
-    const forceOpen = Boolean(query || this.conflictOnly);
-    const previousKind = this.kind;
-    const prepare = (node, ancestorMatch = false) => {
-      this.kind = node.kind || "areas";
-      const object = node.object;
-      const text = object
-        ? [
-            this.objectLabel(object),
-            object.description,
-            object.entity_id,
-            this.store.prefix(node.kind, object),
-            ...this.store
-              .segments(node.kind, object.id)
-              .map((part) => part.value),
-          ]
-            .join(" ")
-            .toLocaleLowerCase()
-        : this.words.noArea.toLocaleLowerCase();
-      const match = ancestorMatch || !query || text.includes(query);
-      const children = node.children
-        .map((child) => prepare(child, match && Boolean(query)))
-        .filter(Boolean);
-      const scoped =
-        !this.conflictScope ||
-        (object &&
-          node.kind === "entities" &&
-          object[this.conflictScope.field] === this.conflictScope.id);
-      const own =
-        match &&
-        (!this.conflictOnly ||
-          (node.kind === "entities" &&
-            scoped &&
-            this.objectConflicts(object).length));
-      return own || children.length ? { ...node, children } : null;
-    };
-    const nodes = this.treeRoots.map((node) => prepare(node)).filter(Boolean);
-    this.treeRows = new Map();
-    const render = (node, depth) => {
-      this.kind = node.kind || "areas";
-      const item = document.createElement("div");
-      item.setAttribute("role", "treeitem");
-      item.setAttribute("aria-level", String(depth + 1));
-      const line = document.createElement("div");
-      line.className = "tree-line";
-      line.style.paddingInlineStart = `${depth * 18}px`;
-      const expanded = forceOpen || !this.treeClosed.has(node.key);
-      if (node.children.length) {
-        item.setAttribute("aria-expanded", String(expanded));
-        const toggle = document.createElement("button");
-        toggle.className = "tree-toggle";
-        toggle.dataset.nodeKey = `toggle:${node.key}`;
-        toggle.textContent = expanded ? "▾" : "▸";
-        toggle.setAttribute(
-          "aria-label",
-          `${expanded ? (this.words === WORDS.ru ? "Свернуть" : "Collapse") : this.words === WORDS.ru ? "Развернуть" : "Expand"}: ${node.object?.name || this.words.noArea}`,
-        );
-        toggle.onclick = () => {
-          if (expanded) this.treeClosed.add(node.key);
-          else this.treeClosed.delete(node.key);
-          this.renderOptions();
-        };
-        toggle.disabled = forceOpen;
-        line.append(toggle);
-      } else {
-        const spacer = document.createElement("span");
-        spacer.className = "tree-spacer";
-        line.append(spacer);
-      }
-      if (node.object) {
-        const button = document.createElement("button");
-        button.className = "tree-select object-row";
-        button.dataset.nodeKey = node.key;
-        button.dataset.kindId = node.kind;
-        button.dataset.objectId = node.object.id;
-        const selected =
-          previousKind === node.kind &&
-          this.selected[node.kind] === node.object.id;
-        item.setAttribute("aria-selected", String(selected));
-        button.tabIndex = selected ? 0 : -1;
-        this.renderObject(button, node.object);
-        button.querySelector(".object-name").textContent = node.object.name;
-        button.querySelector(".object-name").title = this.objectLabel(
-          node.object,
-        );
-        button.onclick = () => {
-          this.kind = node.kind;
-          this.selected[node.kind] = node.object.id;
-          this.fill();
-        };
-        button.disabled = this.busy;
-        line.append(button);
-        const jump = this.conflictJump(node.object);
-        if (jump) line.append(jump);
-        line.append(this.cardLink(node.object));
-        this.treeRows.set(node.key, {
-          node,
-          button,
-          item,
-          line,
-          signature: this.treeSignature(node),
-        });
-      } else {
-        const title = document.createElement("span");
-        title.className = "tree-group-title";
-        title.textContent = this.words.noArea;
-        line.append(title);
-      }
-      item.append(line);
-      if (expanded && node.children.length) {
-        const group = document.createElement("div");
-        group.setAttribute("role", "group");
-        for (const child of node.children)
-          group.append(render(child, depth + 1));
-        item.append(group);
-      }
-      return item;
-    };
-    root.replaceChildren(...nodes.map((node) => render(node, 0)));
-    this.kind = previousKind;
-    root.scrollTop = scroll;
-    if (!root.querySelector('.tree-select[tabindex="0"]')) {
-      const first = root.querySelector(".tree-select");
-      if (first) first.tabIndex = 0;
+    this.treeModel.update({
+      query: this.shadowRoot.querySelector("#object-search").value,
+      conflictOnly: this.conflictOnly,
+      conflicts: this.conflicts,
+      scope: this.conflictScope,
+    });
+    if (!this.virtualTree)
+      this.virtualTree = new VirtualTree(
+        root,
+        () => {
+          const item = document.createElement("div");
+          item.className = "virtual-tree-item";
+          item.setAttribute("role", "treeitem");
+          return item;
+        },
+        (item, row) => this.renderVirtualRow(item, row),
+      );
+    this.virtualTree.setRows(this.treeModel.rows);
+  }
+  renderVirtualRow(item, row) {
+    const node = row.node,
+      previousKind = this.kind;
+    const selected =
+      previousKind === node.kind &&
+      this.selected[node.kind] === node.object?.id;
+    item.setAttribute("aria-level", String(node.depth + 1));
+    item.setAttribute("aria-posinset", String(row.pos));
+    item.setAttribute("aria-setsize", String(row.size));
+    if (node.object) item.setAttribute("aria-selected", String(selected));
+    if (row.hasChildren)
+      item.setAttribute("aria-expanded", String(row.expanded));
+    else item.removeAttribute("aria-expanded");
+    const signature = JSON.stringify([
+      node.object ? this.treeSignature(node) : "",
+      selected,
+      row.expanded,
+      row.hasChildren,
+      this.treeModel.query,
+      this.conflictOnly,
+    ]);
+    if (item.dataset.signature === signature) return;
+    item.dataset.signature = signature;
+    const line = document.createElement("div");
+    line.className = "tree-line";
+    line.style.paddingInlineStart = `${node.depth * 18}px`;
+    if (row.hasChildren) {
+      const toggle = document.createElement("button");
+      toggle.className = "tree-toggle";
+      toggle.dataset.nodeKey = node.key;
+      toggle.textContent = row.expanded ? "▾" : "▸";
+      toggle.setAttribute(
+        "aria-label",
+        `${row.expanded ? (this.words === WORDS.ru ? "Свернуть" : "Collapse") : this.words === WORDS.ru ? "Развернуть" : "Expand"}: ${node.object?.name || this.words.noArea}`,
+      );
+      toggle.disabled = Boolean(this.treeModel.query || this.conflictOnly);
+      toggle.onclick = () => {
+        this.treeModel.toggle(node.key);
+        this.renderOptions();
+      };
+      line.append(toggle);
+    } else {
+      const spacer = document.createElement("span");
+      spacer.className = "tree-spacer";
+      line.append(spacer);
     }
-    if (focus)
-      [...root.querySelectorAll("[data-node-key]")]
-        .find((button) => button.dataset.nodeKey === focus)
-        ?.focus({ preventScroll: true });
+    if (node.object) {
+      this.kind = node.kind;
+      const button = document.createElement("button");
+      button.className = "tree-select object-row";
+      button.dataset.nodeKey = node.key;
+      button.dataset.kindId = node.kind;
+      button.dataset.objectId = node.object.id;
+      button.tabIndex = selected ? 0 : -1;
+      this.renderObject(button, node.object);
+      button.querySelector(".object-name").textContent = node.object.name;
+      button.querySelector(".object-name").title = this.objectLabel(
+        node.object,
+      );
+      button.disabled = this.busy;
+      button.onclick = () => {
+        this.kind = node.kind;
+        this.selected[node.kind] = node.object.id;
+        this.fill();
+      };
+      line.append(button);
+      const jump = this.conflictJump(node.object);
+      if (jump) line.append(jump);
+      line.append(this.cardLink(node.object));
+      this.kind = previousKind;
+    } else {
+      const title = document.createElement("span");
+      title.className = "tree-group-title";
+      title.textContent = this.words.noArea;
+      line.append(title);
+    }
+    item.replaceChildren(line);
+  }
+  focusTreeRow(key) {
+    if (!key || !this.virtualTree) return;
+    this.virtualTree.reveal(key);
+    const item = this.virtualTree.items.get(key);
+    (
+      item?.querySelector(".tree-select") || item?.querySelector(".tree-toggle")
+    )?.focus({ preventScroll: true });
+  }
+  revealTreeObject(kind, id) {
+    const node = [...this.treeModel.nodes.values()].find(
+      (node) => node.kind === kind && node.object?.id === id,
+    );
+    if (!node) return;
+    this.treeModel.reveal(node.key);
+    this.renderOptions();
+    this.virtualTree.reveal(node.key);
   }
   positionPicker() {}
   togglePicker() {
@@ -959,26 +1194,21 @@ export class IDManagerPanel extends (globalThis.HTMLElement || class {}) {
     );
     this.refresh();
   }
-  refresh() {
+  refresh({ tree = true } = {}) {
     if (!this.store) return;
     this.scheduleCheck();
     const q = (s) => this.shadowRoot.querySelector(s),
       w = this.words,
       id = this.selected[this.kind];
-    this.renderObject(
-      q("#object"),
-      this.store.objects[this.kind].find((o) => o.id === id),
-    );
-    const current = this.store.objects[this.kind].find(
-      (object) => object.id === id,
-    );
+    this.renderObject(q("#object"), this.store.byId[this.kind].get(id));
+    const current = this.store.byId[this.kind].get(id);
     q("#selected-link").replaceChildren();
     if (current) {
       const jump = this.conflictJump(current);
       if (jump) q("#selected-link").append(jump);
       q("#selected-link").append(this.cardLink(current));
     }
-    this.updateTreeRows();
+    if (tree) this.updateTreeRows();
     const issues =
       this.kind === "entities" && current ? this.objectConflicts(current) : [];
     const lines = [
@@ -987,9 +1217,7 @@ export class IDManagerPanel extends (globalThis.HTMLElement || class {}) {
           if (!issue.related.length)
             return [`${issue.target}: ${w[issue.reason] || issue.reason}`];
           return issue.related.map((peer) => {
-            const object = this.store.objects.entities.find(
-              (o) => o.id === peer,
-            );
+            const object = this.store.byId.entities.get(peer);
             const label = object
               ? `${object.area_name || w.noArea}/${object.device_name || w.noDevice}/${object.name}`
               : peer;
@@ -1134,35 +1362,8 @@ export class IDManagerPanel extends (globalThis.HTMLElement || class {}) {
     ]);
   }
   updateTreeRows() {
-    if (!this.treeRows) {
-      this.renderOptions();
-      return;
-    }
-    const previousKind = this.kind;
-    for (const row of this.treeRows.values()) {
-      const { node, button, item, line } = row;
-      const selected =
-        previousKind === node.kind &&
-        this.selected[node.kind] === node.object.id;
-      if (item.getAttribute("aria-selected") !== String(selected))
-        item.setAttribute("aria-selected", String(selected));
-      const tabIndex = selected ? 0 : -1;
-      if (button.tabIndex !== tabIndex) button.tabIndex = tabIndex;
-      const signature = this.treeSignature(node);
-      if (signature === row.signature) continue;
-      row.signature = signature;
-      this.kind = node.kind;
-      this.renderObject(button, node.object);
-      button.querySelector(".object-name").textContent = node.object.name;
-      button.querySelector(".object-name").title = this.objectLabel(
-        node.object,
-      );
-      button.disabled = this.busy;
-      line.querySelector(".conflict-jump")?.remove();
-      const jump = this.conflictJump(node.object);
-      if (jump) line.insertBefore(jump, line.querySelector(".object-link"));
-    }
-    this.kind = previousKind;
+    this.renderOptions();
+    this.store.treeDirty.clear();
   }
   conflictJump(object) {
     if (this.kind === "entities") return null;
@@ -1256,7 +1457,11 @@ export class IDManagerPanel extends (globalThis.HTMLElement || class {}) {
     if (this.busy) return;
     clearTimeout(this.checkTimer);
     clearTimeout(this.searchTimer);
-    this.treeRows = null;
+    clearTimeout(this.treeTimer);
+    this.virtualTree?.destroy();
+    this.virtualTree = null;
+    this.treeModel?.destroy();
+    this.treeModel = null;
     this.store = null;
     this.closePicker();
     this.shadowRoot?.querySelector("dialog")?.close();

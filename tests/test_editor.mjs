@@ -7,7 +7,7 @@ const source = await readFile(
   ),
   "utf8",
 );
-const { DraftStore, IDManagerPanel, buildTree } = await import(
+const { DraftStore, IDManagerPanel, buildTree, TreeModel } = await import(
   `data:text/javascript;base64,${Buffer.from(source).toString("base64")}`
 );
 const snapshot = {
@@ -222,3 +222,18 @@ assert.equal(tree.at(-1).key, "no-area");
 assert.equal(tree.at(-1).kind, null);
 assert.equal(tree.at(-1).children.length, 2);
 console.log("Unified tree grouping: passed");
+
+const model = new TreeModel(humidity);
+model.update({
+  query: "new_unique_part",
+  conflictOnly: false,
+  conflicts: {},
+  scope: null,
+});
+assert.equal(model.rows.length, 0);
+humidity.set("entities", "h2", "new_unique_part");
+assert.ok(model.rows.some((row) => row.key === "entities:h2"));
+assert.equal(model.state("entities:h2").parts.at(-1).value, "new_unique_part");
+humidity.undoBulk();
+model.destroy();
+console.log("Nonvisual model changes synchronously without DOM: passed");

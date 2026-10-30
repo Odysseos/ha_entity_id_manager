@@ -58,10 +58,17 @@ try {
     window.test.snapshot.mappings.entities.e2 = "previous";
   });
   const q = (s) => page.locator(`entity-id-manager-panel ${s}`);
-  const select = async (kind, id) =>
-    q(`.tree-select[data-kind-id="${kind}"][data-object-id="${id}"]`)
+  const select = async (kind, id) => {
+    await page
+      .locator("entity-id-manager-panel")
+      .evaluate((panel, { kind, id }) => panel.revealTreeObject(kind, id), {
+        kind,
+        id,
+      });
+    await q(`.tree-select[data-kind-id="${kind}"][data-object-id="${id}"]`)
       .first()
       .click();
+  };
   await q("#open").click();
   await q("#editor-dialog").waitFor({ state: "visible" });
   assert.equal(await q(".tabs").count(), 0);
@@ -132,7 +139,14 @@ try {
   assert.match(await q("#conflict-detail").textContent(), /sensor.collision/);
   assert.equal(await q('.tree-select[data-object-id="no_area"]').count(), 0);
   await q("#filter-all").click();
-  assert.equal(await q('.tree-select[data-object-id="no_area"]').count(), 1);
+  assert.equal(
+    await page
+      .locator("entity-id-manager-panel")
+      .evaluate((panel) =>
+        panel.treeModel.rows.some((row) => row.key === "entities:no_area"),
+      ),
+    true,
+  );
   await q("#confirm").click();
   await q("#editor-dialog").waitFor({ state: "hidden" });
   const saves = await page.evaluate(() =>
@@ -193,7 +207,13 @@ try {
     .evaluate(async (panel) => {
       const root = panel.shadowRoot,
         first = root.querySelector('[role="treeitem"]');
-      let renders = 0;
+      let renders = 0,
+        signatures = 0;
+      const signature = panel.treeSignature.bind(panel);
+      panel.treeSignature = (...args) => {
+        signatures++;
+        return signature(...args);
+      };
       const render = panel.renderOptions.bind(panel);
       panel.renderOptions = (...args) => {
         renders++;
@@ -225,14 +245,22 @@ try {
         max: Math.max(...samples),
         average: samples.reduce((a, b) => a + b, 0) / samples.length,
         renders,
+        signatures,
+        domRows: root.querySelectorAll('[role="treeitem"]').length,
+        modelRows: panel.treeModel.rows.length,
         sameRoot: first === root.querySelector('[role="treeitem"]'),
         value: input.value,
       };
     });
-  assert.equal(
-    timing.renders,
-    0,
-    "Typing and conflict responses must not rebuild the full tree",
+  console.log("Typing work:", JSON.stringify(timing));
+  assert.ok(
+    timing.signatures < 300,
+    "Typing must only inspect affected tree rows",
+  );
+  assert.ok(timing.domRows < 20, "Only viewport rows may exist in DOM");
+  assert.ok(
+    timing.modelRows > 5000,
+    "The independent model must keep all entities",
   );
   assert.equal(timing.sameRoot, true);
   assert.equal(timing.value, "temperature");
@@ -241,6 +269,26 @@ try {
     `Input handler took ${timing.max}ms for 5000 entities`,
   );
   console.log("5000-entity typing performance:", JSON.stringify(timing));
+  const offscreen = await page
+    .locator("entity-id-manager-panel")
+    .evaluate((panel) => {
+      panel.store.set("entities", "perf4999", "changed_offscreen");
+      const state = panel.treeModel.state("entities:perf4999");
+      return {
+        parts: state.parts,
+        exists: !!panel.shadowRoot.querySelector(
+          '.tree-select[data-object-id="perf4999"]',
+        ),
+      };
+    });
+  assert.equal(offscreen.exists, false);
+  assert.equal(offscreen.parts.at(-1).value, "changed_offscreen");
+  await select("entities", "perf4999");
+  assert.equal(await q("#part").inputValue(), "changed_offscreen");
+  assert.ok((await q('[role="treeitem"]').count()) < 20);
+  await q("#object-list").focus();
+  await page.keyboard.press("End");
+  assert.ok((await q('[role="treeitem"]').count()) < 20);
   await q("#cancel").click();
   assert.deepEqual(errors, []);
   console.log(

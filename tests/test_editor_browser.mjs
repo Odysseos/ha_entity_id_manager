@@ -90,7 +90,13 @@ try {
   await q("#bulk-undo").click();
   assert.equal(await q("#part").inputValue(), "previous");
   await q("#object-search").fill("Temperature parameter");
-  assert.equal(await q('.tree-select[data-kind-id="entities"]').count(), 1);
+  await page.waitForFunction(
+    () =>
+      document
+        .querySelector("entity-id-manager-panel")
+        .shadowRoot.querySelectorAll('.tree-select[data-kind-id="entities"]')
+        .length === 1,
+  );
   assert.equal(await q('.tree-select[data-kind-id="areas"]').count(), 1);
   assert.equal(await q('.tree-select[data-kind-id="devices"]').count(), 1);
   await q("#object-search").fill("");
@@ -164,6 +170,78 @@ try {
   await q('#preview-rows input[value="valid"]').check();
   await q("#preview-apply").click();
   await q("#preview-dialog").waitFor({ state: "hidden" });
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.goto("http://editor.test/");
+  await page.evaluate(() => {
+    const snapshot = window.test.snapshot;
+    for (let i = 0; i < 5000; i++)
+      snapshot.objects.entities.push({
+        id: `perf${i}`,
+        name: `Sensor ${i}`,
+        entity_id: `sensor.perf_${i}`,
+        area_id: "a",
+        area_name: "Гостиная",
+        device_id: "d",
+        device_name: "Нептун",
+      });
+  });
+  await q("#open").click();
+  await select("entities", "perf0");
+  await page.waitForTimeout(400);
+  const timing = await page
+    .locator("entity-id-manager-panel")
+    .evaluate(async (panel) => {
+      const root = panel.shadowRoot,
+        first = root.querySelector('[role="treeitem"]');
+      let renders = 0;
+      const render = panel.renderOptions.bind(panel);
+      panel.renderOptions = (...args) => {
+        renders++;
+        return render(...args);
+      };
+      const input = root.querySelector("#part"),
+        samples = [];
+      for (const value of [
+        "t",
+        "te",
+        "tem",
+        "temp",
+        "tempe",
+        "temper",
+        "tempera",
+        "temperat",
+        "temperatu",
+        "temperatur",
+        "temperature",
+      ]) {
+        const start = performance.now();
+        input.value = value;
+        input.dispatchEvent(new Event("input", { bubbles: true }));
+        samples.push(performance.now() - start);
+        await new Promise(requestAnimationFrame);
+      }
+      await new Promise((resolve) => setTimeout(resolve, 400));
+      return {
+        max: Math.max(...samples),
+        average: samples.reduce((a, b) => a + b, 0) / samples.length,
+        renders,
+        sameRoot: first === root.querySelector('[role="treeitem"]'),
+        value: input.value,
+      };
+    });
+  assert.equal(
+    timing.renders,
+    0,
+    "Typing and conflict responses must not rebuild the full tree",
+  );
+  assert.equal(timing.sameRoot, true);
+  assert.equal(timing.value, "temperature");
+  assert.ok(
+    timing.max < 250,
+    `Input handler took ${timing.max}ms for 5000 entities`,
+  );
+  console.log("5000-entity typing performance:", JSON.stringify(timing));
+  await q("#cancel").click();
   assert.deepEqual(errors, []);
   console.log(
     "Unified tree: navigation, hierarchy, search, conflicts, bulk undo, batch save, cancellation, fixed layout and mobile bounds passed",

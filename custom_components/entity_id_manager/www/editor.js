@@ -351,7 +351,10 @@ export class IDManagerPanel extends (globalThis.HTMLElement || class {}) {
       this.closePreview();
     });
     q("#preview-apply").onclick = () => this.applyPreview();
-    q("#object-search").oninput = () => this.renderOptions();
+    q("#object-search").oninput = () => {
+      clearTimeout(this.searchTimer);
+      this.searchTimer = setTimeout(() => this.renderOptions(), 150);
+    };
     q("#object-list").onkeydown = (event) => {
       const buttons = [...q("#object-list").querySelectorAll(".tree-select")];
       const current = event.target.closest(".tree-select");
@@ -637,6 +640,11 @@ export class IDManagerPanel extends (globalThis.HTMLElement || class {}) {
       this.selected = {};
       this.kind = "areas";
       this.treeRoots = buildTree(this.store.objects);
+      this.entityLookup = new Map(
+        this.store.objects.entities.map((object) => [object.id, object]),
+      );
+      this.treeRows = null;
+      this.indexedConflicts = null;
       this.treeClosed = new Set();
       q("#object-search").value = "";
       this.busy = false;
@@ -846,6 +854,7 @@ export class IDManagerPanel extends (globalThis.HTMLElement || class {}) {
       return own || children.length ? { ...node, children } : null;
     };
     const nodes = this.treeRoots.map((node) => prepare(node)).filter(Boolean);
+    this.treeRows = new Map();
     const render = (node, depth) => {
       this.kind = node.kind || "areas";
       const item = document.createElement("div");
@@ -903,6 +912,13 @@ export class IDManagerPanel extends (globalThis.HTMLElement || class {}) {
         const jump = this.conflictJump(node.object);
         if (jump) line.append(jump);
         line.append(this.cardLink(node.object));
+        this.treeRows.set(node.key, {
+          node,
+          button,
+          item,
+          line,
+          signature: this.treeSignature(node),
+        });
       } else {
         const title = document.createElement("span");
         title.className = "tree-group-title";
@@ -962,7 +978,7 @@ export class IDManagerPanel extends (globalThis.HTMLElement || class {}) {
       if (jump) q("#selected-link").append(jump);
       q("#selected-link").append(this.cardLink(current));
     }
-    if (!q("#object-dropdown").hidden) this.renderOptions();
+    this.updateTreeRows();
     const issues =
       this.kind === "entities" && current ? this.objectConflicts(current) : [];
     const lines = [
@@ -1085,15 +1101,76 @@ export class IDManagerPanel extends (globalThis.HTMLElement || class {}) {
     this.bulkMessage = `${this.words === WORDS.ru ? "Изменено одноимённых объектов" : "Matching objects changed"}: ${count}`;
     this.fill();
   }
+  ensureConflictIndex() {
+    if (this.indexedConflicts === this.conflicts) return;
+    this.indexedConflicts = this.conflicts;
+    this.parentIssues = { areas: new Map(), devices: new Map() };
+    this.parentIds = { areas: new Map(), devices: new Map() };
+    for (const [id, issues] of Object.entries(this.conflicts || {})) {
+      const entity = this.entityLookup?.get(id);
+      if (!entity || !issues.length) continue;
+      for (const [kind, parent] of [
+        ["areas", entity.area_id],
+        ["devices", entity.device_id],
+      ]) {
+        if (!parent) continue;
+        if (!this.parentIssues[kind].has(parent)) {
+          this.parentIssues[kind].set(parent, []);
+          this.parentIds[kind].set(parent, []);
+        }
+        this.parentIssues[kind].get(parent).push(...issues);
+        this.parentIds[kind].get(parent).push(id);
+      }
+    }
+  }
+  treeSignature(node) {
+    this.ensureConflictIndex();
+    return JSON.stringify([
+      this.store.segments(node.kind, node.object.id),
+      node.kind === "entities"
+        ? Boolean(this.conflicts?.[node.object.id]?.length)
+        : this.parentIds[node.kind].get(node.object.id)?.length || 0,
+      this.busy,
+    ]);
+  }
+  updateTreeRows() {
+    if (!this.treeRows) {
+      this.renderOptions();
+      return;
+    }
+    const previousKind = this.kind;
+    for (const row of this.treeRows.values()) {
+      const { node, button, item, line } = row;
+      const selected =
+        previousKind === node.kind &&
+        this.selected[node.kind] === node.object.id;
+      if (item.getAttribute("aria-selected") !== String(selected))
+        item.setAttribute("aria-selected", String(selected));
+      const tabIndex = selected ? 0 : -1;
+      if (button.tabIndex !== tabIndex) button.tabIndex = tabIndex;
+      const signature = this.treeSignature(node);
+      if (signature === row.signature) continue;
+      row.signature = signature;
+      this.kind = node.kind;
+      this.renderObject(button, node.object);
+      button.querySelector(".object-name").textContent = node.object.name;
+      button.querySelector(".object-name").title = this.objectLabel(
+        node.object,
+      );
+      button.disabled = this.busy;
+      line.querySelector(".conflict-jump")?.remove();
+      const jump = this.conflictJump(node.object);
+      if (jump) line.insertBefore(jump, line.querySelector(".object-link"));
+    }
+    this.kind = previousKind;
+  }
   conflictJump(object) {
     if (this.kind === "entities") return null;
     const field = this.kind === "areas" ? "area_id" : "device_id";
-    const ids = this.store.objects.entities
-      .filter(
-        (entity) =>
-          entity[field] === object.id && this.conflicts?.[entity.id]?.length,
-      )
-      .map((entity) => entity.id);
+    const kind = this.kind;
+    this.ensureConflictIndex();
+    const ids = this.parentIds[kind].get(object.id) || [];
+    const label = `${this.words[kind]}: ${this.objectLabel(object)}`;
     if (!ids.length) return null;
     const button = document.createElement("button");
     button.className = "conflict-jump";
@@ -1109,7 +1186,7 @@ export class IDManagerPanel extends (globalThis.HTMLElement || class {}) {
       this.conflictScope = {
         field,
         id: object.id,
-        label: `${this.words[this.kind]}: ${this.objectLabel(object)}`,
+        label,
       };
       this.scopeChoice = this.conflictScope;
       this.conflictOnly = true;
@@ -1124,13 +1201,8 @@ export class IDManagerPanel extends (globalThis.HTMLElement || class {}) {
     if (!this.store) return [];
     if (this.kind === "entities") return this.conflicts?.[object.id] || [];
     if (this.kind === "areas" || this.kind === "devices") {
-      return this.store.objects.entities
-        .filter(
-          (entity) =>
-            (this.kind === "areas" ? entity.area_id : entity.device_id) ===
-            object.id,
-        )
-        .flatMap((entity) => this.conflicts?.[entity.id] || []);
+      this.ensureConflictIndex();
+      return this.parentIssues[this.kind].get(object.id) || [];
     }
     return [];
   }
@@ -1171,6 +1243,11 @@ export class IDManagerPanel extends (globalThis.HTMLElement || class {}) {
         if (this.store === store && this.checkKey === key) {
           this.checking = false;
           this.refresh();
+          if (
+            this.conflictOnly ||
+            this.shadowRoot.querySelector("#object-search").value.trim()
+          )
+            this.renderOptions();
         }
       }
     }, 250);
@@ -1178,6 +1255,8 @@ export class IDManagerPanel extends (globalThis.HTMLElement || class {}) {
   cancel() {
     if (this.busy) return;
     clearTimeout(this.checkTimer);
+    clearTimeout(this.searchTimer);
+    this.treeRows = null;
     this.store = null;
     this.closePicker();
     this.shadowRoot?.querySelector("dialog")?.close();

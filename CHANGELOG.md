@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.6.1
+
+- Update only affected tree rows while editing ID parts instead of rebuilding the whole tree on each keystroke and conflict response.
+- Index parent conflicts once per check result instead of repeatedly scanning all entities for each parent.
+- Debounce tree search and preserve existing tree nodes and scroll position during editing.
+- Add a browser regression check for typing with 5,000 entities.
+
 ## 0.6.0
 
 - Replace separate area, device and entity tabs with one hierarchical tree and a persistent editor.

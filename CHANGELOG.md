@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.7.3
+
+- Show a bulk-operation result and its undo control only for the object that started the operation; preserve both when navigating away and back.
+- Add a browser regression check for switching selection after bulk changes and undo.
+
 ## 0.7.2
 
 - Exclude same-name targets whose full entity IDs already match the proposed naming, even without saved ID-part overrides.

@@ -917,6 +917,7 @@ export class IDManagerPanel extends (globalThis.HTMLElement || class {}) {
       this.store = new DraftStore(snapshot);
       this.bulkPending = null;
       this.bulkMessage = "";
+      this.bulkSource = null;
       this.conflicts = {};
       this.conflictOnly = false;
       this.conflictScope = null;
@@ -1337,7 +1338,8 @@ export class IDManagerPanel extends (globalThis.HTMLElement || class {}) {
     q("#bulk-empty").textContent = `${ruBulk ? "Только незаданные" : "Unset only"} (${unsetNamesakes.length})`;
     q("#bulk-all").textContent = `${ruBulk ? "Заменить у всех" : "Replace all"} (${namesakes.length})`;
     q("#bulk-cancel").textContent = w.cancel;
-    q("#bulk-result").hidden = !this.bulkMessage;
+    q("#bulk-result").hidden = !this.bulkMessage ||
+      this.bulkSource?.key !== this.kind || this.bulkSource?.id !== id;
     q("#bulk-message").textContent = this.bulkMessage || "";
     q("#bulk-undo").textContent = ruBulk ? "Отменить" : "Undo";
     q("#bulk-undo").hidden = !this.store.bulkUndo;
@@ -1360,6 +1362,7 @@ export class IDManagerPanel extends (globalThis.HTMLElement || class {}) {
     if (!this.store || this.busy) return;
     const count = this.store.copyToNamesakes(key, id, replace);
     this.bulkPending = null;
+    this.bulkSource = { key, id };
     this.bulkMessage = `${this.words === WORDS.ru ? "Изменено одноимённых объектов" : "Matching objects changed"}: ${count}`;
     this.fill();
   }

@@ -96,7 +96,12 @@ try {
   assert.equal(await q("#bulk-copy").isDisabled(), true);
   await select("entities", "e2");
   assert.equal(await q("#part").inputValue(), "temperature");
+  assert.equal(await q("#bulk-result").isVisible(), false);
+  await select("entities", "e");
+  assert.equal(await q("#bulk-result").isVisible(), true);
   await q("#bulk-undo").click();
+  await select("entities", "e2");
+  assert.equal(await q("#bulk-result").isVisible(), false);
   assert.equal(await q("#part").inputValue(), "previous");
   await q("#object-search").fill("Temperature parameter");
   await page.waitForFunction(

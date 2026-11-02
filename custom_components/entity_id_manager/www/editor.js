@@ -390,6 +390,12 @@ export class TreeModel {
     });
     this.rebuild();
   }
+  firstUnset() {
+    for (const node of this.nodes.values()) {
+      if (node.object && !this.store.value(node.kind, node.object.id)) return node;
+    }
+    return null;
+  }
   state(key) {
     const node = this.nodes.get(key);
     return node?.object
@@ -1018,8 +1024,18 @@ export class IDManagerPanel extends (globalThis.HTMLElement || class {}) {
       q("#object-search").value = "";
       this.busy = false;
       q("#error").textContent = "";
+      const initial = this.treeModel.firstUnset();
+      if (initial) {
+        this.kind = initial.kind;
+        this.selected[initial.kind] = initial.object.id;
+      }
+      q("#object-list").scrollTop = 0;
       this.selectKind();
       q("dialog").showModal();
+      if (initial) {
+        this.revealTreeObject(initial.kind, initial.object.id);
+        this.focusTreeRow(initial.key);
+      }
     } catch (error) {
       q("#status").textContent = `${w.loadError} ${error.message || ""}`;
     } finally {

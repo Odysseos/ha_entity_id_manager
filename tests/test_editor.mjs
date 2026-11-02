@@ -371,3 +371,16 @@ for (const [entity_id, area, device, expected] of existingIdCases) {
 }
 assert.equal(store.currentIdSegment('missing'), null);
 console.log('Extract current ID: exact parent prefixes, unchanged drafts, empty suffix and boundaries: passed');
+const positioning = new DraftStore({mappings: {areas: {a: 'room'}, devices: {d: 'device'}, entities: {primary: '-'}}, objects: {
+  areas: [{id: 'a', name: 'Комната'}],
+  devices: [{id: 'd', name: 'Устройство', area_id: 'a'}],
+  entities: [{id: 'primary', name: 'А', area_id: 'a', device_id: 'd'}, {id: 'first', name: 'Б', area_id: 'a', device_id: 'd'}, {id: 'second', name: 'В', area_id: 'a'}],
+}});
+const positioningTree = new TreeModel(positioning);
+assert.equal(positioningTree.firstUnset().object.id, 'first');
+positioning.set('entities', 'first', 'first');
+assert.equal(positioningTree.firstUnset().object.id, 'second');
+positioning.set('entities', 'second', 'second');
+assert.equal(positioningTree.firstUnset(), null);
+positioningTree.destroy();
+console.log('Initial selection: first unset in tree order, omission excluded and all-set fallback: passed');

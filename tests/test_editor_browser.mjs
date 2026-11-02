@@ -75,6 +75,11 @@ try {
   };
   await q("#open").click();
   await q("#editor-dialog").waitFor({ state: "visible" });
+  const initialSelection = await page.locator('entity-id-manager-panel').evaluate(panel => ({
+    kind: panel.kind, id: panel.selected[panel.kind],
+  }));
+  assert.deepEqual(initialSelection, {kind: 'areas', id: 'b'});
+  assert.equal(await q('.tree-select[data-kind-id="areas"][data-object-id="b"]').evaluate(node => node.closest('[role="treeitem"]').getAttribute('aria-selected')), 'true');
   assert.equal(await q(".tabs").count(), 0);
   assert.equal(await q('[role="tree"]').count(), 1);
   const layout = () => q("#editor-dialog").boundingBox();
@@ -378,6 +383,27 @@ try {
   await page.keyboard.press("End");
   assert.ok((await q('[role="treeitem"]').count()) < 20);
   await q("#cancel").click();
+  await page.evaluate(() => {
+    const areas = Array.from({length: 100}, (_, i) => ({id: `area${i}`, name: `Room ${String(i).padStart(3, '0')}`}));
+    window.test.snapshot = {revision: 'positioning', mappings: {
+      areas: Object.fromEntries(areas.map(a => [a.id, a.id])), devices: {last: 'device'}, entities: {},
+    }, objects: {areas, devices: [{id: 'last', name: 'Device', area_id: 'area99'}], entities: [{id: 'unset-last', name: 'Temperature', entity_id: 'sensor.last', area_id: 'area99', device_id: 'last'}]}};
+    window.test.conflicts = {};
+  });
+  await q('#open').click();
+  await q('#editor-dialog').waitFor({state: 'visible'});
+  const positioning = await page.locator('entity-id-manager-panel').evaluate(panel => {
+    const list = panel.shadowRoot.querySelector('#object-list');
+    const row = list.querySelector('.tree-select[data-object-id="unset-last"]');
+    const rect = row?.getBoundingClientRect(), viewport = list.getBoundingClientRect();
+    return {kind: panel.kind, id: panel.selected[panel.kind], scrollTop: list.scrollTop,
+      visible: !!rect && rect.top >= viewport.top && rect.bottom <= viewport.bottom + 1};
+  });
+  assert.equal(positioning.kind, 'entities');
+  assert.equal(positioning.id, 'unset-last');
+  assert.ok(positioning.scrollTop > 0);
+  assert.ok(positioning.visible);
+  await q('#cancel').click();
   assert.deepEqual(errors, []);
   console.log(
     "Unified tree: navigation, hierarchy, search, conflicts, bulk undo, batch save, cancellation, fixed layout and mobile bounds passed",

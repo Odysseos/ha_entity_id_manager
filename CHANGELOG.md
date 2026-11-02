@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.12.1
+
+- Open the editor at the first object with an unset segment in tree order, selecting and revealing it.
+- Treat explicit omission as set; retain normal initial selection when every segment is set.
+
 ## 0.12.0
 
 - Fill entity segments from current entity IDs, removing exact prefixes derived from current parent names.

@@ -18,9 +18,12 @@ from homeassistant.config_entries import ConfigEntryState
 from homeassistant.core import callback
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import area_registry as ar
+from homeassistant.helpers import entity_registry as er
 from yaml.nodes import MappingNode, ScalarNode, SequenceNode
 
 from .const import DOMAIN
+from .yaha import DOMAIN as YAHA_DOMAIN
+from .yaha import plan_filter_edits
 
 # These values identify an object or a device protocol endpoint, not a HA reference.
 IDENTITY_KEYS = {
@@ -45,9 +48,14 @@ def protected(key):
     )
 
 
+# A standalone selector is not an entity reference, including bracket globs.
+ENTITY_GLOB = re.compile(r"[\w*?\[\]!-]+\.[\w*?\[\]!-]+")
+
+
 class Replacer:
     def __init__(self, renames):
         self.renames = dict(renames)
+        self.rename_log = []
         alternatives = "|".join(re.escape(old) for old in sorted(renames, key=len, reverse=True))
         # Allow dotted template access (states.sensor.example.state), but not
         # substrings of other entity IDs or wildcard selectors.
@@ -134,7 +142,9 @@ class Replacer:
                 for value in node.value:
                     visit(value)
             elif isinstance(node, ScalarNode) and node.tag == "tag:yaml.org,2002:str":
-                if not self.pattern.search(node.value):
+                if (
+                    "[" in node.value and ENTITY_GLOB.fullmatch(node.value)
+                ) or not self.pattern.search(node.value):
                     return
                 if id(node) in blocked:
                     raise HomeAssistantError(
@@ -180,17 +190,24 @@ def atomic_write(path, content, mode=0o600):
             os.unlink(name)
 
 
-def collect_files(config_dir, extra, replacer):
+def collect_files(config_dir, extra, replacer, entity_ids=()):
     """Follow active include/blueprint graphs, plus loaded dashboard/template files."""
     base = Path(config_dir).resolve()
-    pending = [(base / "configuration.yaml", None), *[(Path(path), "lovelace") for path in extra]]
-    seen, changes = set(), []
+    pending = [
+        (base / "configuration.yaml", None),
+        *((Path(path), "lovelace") for path in extra),
+    ]
+    seen, yaml_changes = set(), {}
+    sources, planned, filter_roots = {}, {}, set()
+    yaha_include_roots = set()
     root_exists = (base / "configuration.yaml").is_file()
 
-    def include(path, domain):
+    def include(path, domain, yaha_root=False):
         path = path.resolve()
         if not path.is_relative_to(base):
             raise HomeAssistantError(f"Configuration include is outside the HA directory: {path}")
+        if yaha_root:
+            yaha_include_roots.add(path)
         pending.append((path, domain))
 
     while pending:
@@ -198,92 +215,134 @@ def collect_files(config_dir, extra, replacer):
         path = path.resolve()
         if not path.is_relative_to(base):
             raise HomeAssistantError(f"Configuration file is outside the HA directory: {path}")
-        if path in seen:
+        if (path, domain) in seen:
             continue
-        seen.add(path)
+        seen.add((path, domain))
         if not path.is_file():
             continue
         before = path.read_bytes()
         text = before.decode("utf-8")
-        if path.suffix in {".yaml", ".yml"}:
-            documents = list(yaml.compose_all(text, Loader=yaml.SafeLoader))
-            walked = set()
+        sources[path] = text
+        documents = list(yaml.compose_all(text, Loader=yaml.SafeLoader))
+        walked = set()
 
-            def walk(node, context):
-                if node is None or id(node) in walked:
-                    return
-                walked.add(id(node))
-                if isinstance(node, ScalarNode) and node.tag.startswith("!include"):
-                    target = path.parent / node.value
-                    if node.tag == "!include":
-                        include(target, context)
-                    elif node.tag in {
-                        "!include_dir_list",
-                        "!include_dir_named",
-                        "!include_dir_merge_list",
-                        "!include_dir_merge_named",
-                    }:
-                        for item in sorted(target.rglob("*.yaml")):
-                            if not any(
-                                part.startswith(".") for part in item.relative_to(target).parts
-                            ):
-                                include(item, context)
-                    return
-                if isinstance(node, MappingNode):
-                    for key, value in node.value:
-                        name = key.value if isinstance(key, ScalarNode) else ""
-                        if name == "use_blueprint" and isinstance(value, MappingNode):
-                            for field, filename in value.value:
-                                if field.value == "path" and isinstance(filename, ScalarNode):
-                                    include(
-                                        base
-                                        / "blueprints"
-                                        / (context or "template")
-                                        / filename.value,
-                                        context,
-                                    )
-                        if (
-                            name == "filename"
-                            and context == "lovelace"
-                            and isinstance(value, ScalarNode)
-                        ):
-                            include(base / value.value, "lovelace")
-                        walk(
-                            value,
-                            name
-                            if context is None
-                            or name in {"automation", "script", "template", "scene", "lovelace"}
-                            else context,
+        yaha_spans = []
+        yaha_sections = set()
+
+        def walk(node, context, index):
+            if node is None or (id(node), context) in walked:
+                return
+            walked.add((id(node), context))
+            if isinstance(node, ScalarNode) and node.tag.startswith("!include"):
+                target = path.parent / node.value
+                if node.tag == "!include":
+                    include(target, context, (path, index) in yaha_sections)
+                elif node.tag in {
+                    "!include_dir_list",
+                    "!include_dir_named",
+                    "!include_dir_merge_list",
+                    "!include_dir_merge_named",
+                }:
+                    for item in sorted(target.rglob("*.yaml")):
+                        if not any(part.startswith(".") for part in item.relative_to(target).parts):
+                            include(
+                                item,
+                                context,
+                                node.tag == "!include_dir_merge_named"
+                                and (path, index) in yaha_sections,
+                            )
+                return
+            if isinstance(node, MappingNode):
+                for offset, (key, value) in enumerate(node.value):
+                    name = key.value if isinstance(key, ScalarNode) else ""
+                    if name == "use_blueprint" and isinstance(value, MappingNode):
+                        for field, filename in value.value:
+                            if field.value == "path" and isinstance(filename, ScalarNode):
+                                include(
+                                    base / "blueprints" / (context or "template") / filename.value,
+                                    context,
+                                )
+                    if (
+                        name == "filename"
+                        and context == "lovelace"
+                        and isinstance(value, ScalarNode)
+                    ):
+                        include(base / value.value, "lovelace")
+                    if name == YAHA_DOMAIN:
+                        yaha_sections.add((path, (*index, offset)))
+                        yaha_spans.append((key.start_mark.index, value.end_mark.index))
+                    if (
+                        name == "filter"
+                        and context == YAHA_DOMAIN
+                        and (
+                            (path in yaha_include_roots and len(index) == 1)
+                            or (path, index) in yaha_sections
                         )
-                elif isinstance(node, SequenceNode):
-                    for value in node.value:
-                        walk(value, context)
+                    ):
+                        filter_roots.add((path, (*index, offset)))
+                    walk(
+                        value,
+                        name
+                        if context is None
+                        or name
+                        in {"automation", "script", "template", "scene", "lovelace", YAHA_DOMAIN}
+                        else context,
+                        (*index, offset),
+                    )
+            elif isinstance(node, SequenceNode):
+                for offset, value in enumerate(node.value):
+                    walk(value, context, (*index, offset))
 
+        for offset, document in enumerate(documents):
+            if path in yaha_include_roots:
+                yaha_sections.add((path, (offset,)))
+            walk(document, domain, (offset,))
+        count = replacer.count
+        planned[path] = replacer.yaml(text)
+        after = planned[path].encode("utf-8")
+        domains = {domain} if domain else set()
+        if any(
+            left <= start < right
+            for left, right in yaha_spans
+            for start, _ in replacer.changed_offsets
+        ):
+            domains.add(YAHA_DOMAIN)
+        if domain is None:
             for document in documents:
-                walk(document, domain)
-            after = replacer.yaml(text).encode("utf-8")
-            domains = {domain} if domain else set()
-            if domain is None:
-                for document in documents:
-                    if isinstance(document, MappingNode):
-                        for key, value in document.value:
-                            if isinstance(key, ScalarNode) and any(
-                                key.start_mark.index <= start < value.end_mark.index
-                                for start, _ in replacer.changed_offsets
-                            ):
-                                domains.add(key.value.split(" ", 1)[0])
-        else:
-            after = replacer.text(text).encode("utf-8")
-            domains = {"homeassistant"}
-        if after != before:
-            changes.append(
-                FileChange(
-                    path, before, after, stat.S_IMODE(path.stat().st_mode), tuple(sorted(domains))
-                )
+                if isinstance(document, MappingNode):
+                    for key, value in document.value:
+                        if isinstance(key, ScalarNode) and any(
+                            key.start_mark.index <= start < value.end_mark.index
+                            for start, _ in replacer.changed_offsets
+                        ):
+                            domains.add(key.value.split(" ", 1)[0])
+        if path in yaml_changes:
+            change = yaml_changes[path]
+            change.domains = tuple(sorted(set(change.domains) | domains))
+            replacer.count = count
+        elif after != before:
+            yaml_changes[path] = FileChange(
+                path, before, after, stat.S_IMODE(path.stat().st_mode), tuple(sorted(domains))
             )
+    for path, edits in plan_filter_edits(
+        sorted(filter_roots), sources, planned, replacer.renames, entity_ids, replacer.rename_log
+    ).items():
+        text = planned[path]
+        for (start, end), replacement in sorted(edits.items(), reverse=True):
+            text = text[:start] + replacement + text[end:]
+        list(yaml.compose_all(text, Loader=yaml.SafeLoader))
+        change = yaml_changes.get(path)
+        if change is None:
+            change = yaml_changes[path] = FileChange(
+                path, sources[path].encode("utf-8"), b"", stat.S_IMODE(path.stat().st_mode)
+            )
+        change.after = text.encode("utf-8")
+        change.domains = tuple(sorted({*change.domains, YAHA_DOMAIN}))
+        replacer.count += len(edits)
+    changes = list(yaml_changes.values())
     # A !secret can supply an entity ID; preserve the secret's key and identity.
     secrets = base / "secrets.yaml"
-    if root_exists and secrets.is_file() and secrets.resolve() not in seen:
+    if root_exists and secrets.is_file() and all(path != secrets.resolve() for path, _ in seen):
         before = secrets.read_bytes()
         document = yaml.compose(before.decode("utf-8"), Loader=yaml.SafeLoader)
         if isinstance(document, MappingNode):
@@ -356,6 +415,7 @@ class ReferenceUpdate:
         self.reloaded = False
         self.root_exists = False
         self.count = 0
+        self.rename_log = []
 
     async def prepare(self):
         from homeassistant.components.lovelace.const import LOVELACE_DATA, ConfigNotFound
@@ -375,8 +435,11 @@ class ReferenceUpdate:
             after = replace.data(before)
             if before != after:
                 self.dashboards.append((dashboard, before, after))
+        entity_ids = set(er.async_get(self.hass).entities) | set(
+            self.hass.states.async_entity_ids()
+        )
         self.files, self.root_exists = await self.hass.async_add_executor_job(
-            collect_files, self.hass.config.config_dir, extra, replace
+            collect_files, self.hass.config.config_dir, extra, replace, entity_ids
         )
         for entry in self.hass.config_entries.async_entries():
             if entry.domain == DOMAIN:
@@ -392,6 +455,7 @@ class ReferenceUpdate:
                     self.subentries.append((entry, subentry.subentry_id, previous, updated))
         await self._prepare_runtime(replace)
         self.count = replace.count
+        self.rename_log = replace.rename_log
         return self
 
     async def _prepare_runtime(self, replace):
@@ -481,6 +545,7 @@ class ReferenceUpdate:
         manifest = {
             "state": "prepared",
             "renames": self.renames,
+            "rename_log": self.rename_log,
             "files": [],
             "entries": [],
             "subentries": [],
@@ -576,6 +641,10 @@ class ReferenceUpdate:
             if self.hass.services.has_service("homeassistant", "reload_all"):
                 await self.hass.services.async_call("homeassistant", "reload_all", blocking=True)
             else:
+                if any(YAHA_DOMAIN in change.domains for change in self.files) and (
+                    self.hass.services.has_service(YAHA_DOMAIN, "reload")
+                ):
+                    await self.hass.services.async_call(YAHA_DOMAIN, "reload", blocking=True)
                 self.restart.add("YAML")
         for dashboard in self.yaml_dashboards:
             if self.files:

@@ -884,3 +884,39 @@ async def test_runtime_area_person_energy_references_and_rollback(ctx):
     assert people.data[person["id"]]["device_trackers"] == ["device_tracker.old"]
     assert energy.data["device_consumption"][0]["stat_consumption"] == old
     await hass.async_stop()
+
+
+@pytest.mark.asyncio
+async def test_review_all_snapshot_objects_without_mapping_changes(ctx):
+    from custom_components.entity_id_manager.editor import EditError, revision, save, snapshot
+
+    hass, entry, area, device, entity = await ctx()
+    manager = Manager(hass, entry)
+    opened = snapshot(hass, entry)
+    assert opened["reviewed"] is None
+    reviewed = {key: [obj["id"] for obj in rows] for key, rows in opened["objects"].items()}
+    # Appearing during editing must not be silently marked as reviewed.
+    later = ar.async_get(hass).async_create("Поздняя зона")
+    mappings_before = dict(entry.options)
+    result = await save(hass, manager, opened["revision"], {}, reviewed)
+    assert entry.options == mappings_before
+    assert set(result["reviewed"]["areas"]) == {area.id}
+    assert set(result["reviewed"]["devices"]) == {device.id}
+    assert set(result["reviewed"]["entities"]) == {entity.id}
+    assert later.id not in snapshot(hass, entry)["reviewed"]["areas"]
+    assert entry.data["reviewed_objects"] == result["reviewed"]
+    # The same entity registry UUID is retained when the entity is renamed.
+    er.async_get(hass).async_update_entity(entity.entity_id, new_entity_id="binary_sensor.renamed")
+    assert snapshot(hass, entry)["objects"]["entities"][0]["id"] in result["reviewed"]["entities"]
+    before = dict(entry.data)
+    with pytest.raises(EditError):
+        await save(
+            hass, manager, revision(entry), {}, {"areas": [123], "devices": [], "entities": []}
+        )
+    assert entry.data == before
+    # Concurrent confirmations merge their sets rather than losing earlier reviews.
+    await save(
+        hass, manager, revision(entry), {}, {"areas": [later.id], "devices": [], "entities": []}
+    )
+    assert set(entry.data["reviewed_objects"]["areas"]) == {area.id, later.id}
+    await hass.async_stop()

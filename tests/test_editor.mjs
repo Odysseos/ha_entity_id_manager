@@ -403,3 +403,27 @@ navigationTree.update({query: '', conflictOnly: true, conflicts: {first: [{}], l
 assert.equal(navigationTree.adjacentUnset(undefined, 1).object.id, 'last');
 navigationTree.destroy();
 console.log('Unset navigation: collapsed branches, boundaries, search and scoped filters: passed');
+
+const reviewSnapshot = {revision: 'seen', mappings: {areas: {}, devices: {}, entities: {e: '-'}}, objects: {
+  areas: [{id: 'old', name: 'A old'}, {id: 'new', name: 'Z new'}], devices: [],
+  entities: [{id: 'e', name: 'Primary', area_id: 'new'}],
+}};
+const bootstrap = new DraftStore(reviewSnapshot);
+assert.equal(bootstrap.isNew('areas', 'old'), false);
+assert.equal(bootstrap.needsReview, true);
+const reviewed = new DraftStore({...reviewSnapshot, reviewed: {areas: ['old'], devices: [], entities: []}});
+assert.equal(reviewed.isNew('areas', 'old'), false);
+assert.equal(reviewed.isNew('areas', 'new'), true);
+assert.equal(reviewed.isNew('entities', 'e'), true); // New even if an explicit segment exists.
+assert.equal(reviewed.needsReview, true);
+reviewed.set('areas', 'new', 'new');
+assert.equal(reviewed.isNew('areas', 'new'), true); // Draft edits do not acknowledge.
+assert.deepEqual(reviewed.reviewedObjects(), {areas: ['old', 'new'], devices: [], entities: ['e']});
+const reviewTree = new TreeModel(reviewed);
+assert.equal(reviewTree.firstUnset().object.id, 'old'); // No priority for new nodes.
+assert.equal(reviewTree.adjacentUnset('areas:old', 1), null); // New but filled nodes are skipped.
+reviewTree.destroy();
+const acknowledged = new DraftStore({...reviewSnapshot, reviewed: reviewed.reviewedObjects()});
+assert.equal(acknowledged.needsReview, false);
+assert.equal(acknowledged.isNew('entities', 'e'), false);
+console.log('Review state: first run, confirmation, new versus missing and unchanged tree order: passed');

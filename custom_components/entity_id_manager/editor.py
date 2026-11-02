@@ -145,6 +145,7 @@ def snapshot(hass, entry):
         "mappings": mappings(entry),
         "objects": objects(hass, entry.data.get("fallback_suffixes", {})),
         "auto_new": bool(entry.options.get("auto_new", False)),
+        "reviewed": entry.data.get("reviewed_objects"),
     }
 
 
@@ -173,7 +174,7 @@ def draft_options(hass, entry, changes):
     return options
 
 
-async def save(hass, manager, expected_revision, changes):
+async def save(hass, manager, expected_revision, changes, reviewed=None):
     async with manager.lock:
         entry = manager.entry
         if revision(entry) != expected_revision:
@@ -181,8 +182,23 @@ async def save(hass, manager, expected_revision, changes):
         if not isinstance(changes, dict) or any(key not in KEYS for key in changes):
             raise EditError("invalid_changes", "Invalid mapping section")
         options = draft_options(hass, entry, changes)
-        # All values were validated before this single configuration write.
-        hass.config_entries.async_update_entry(entry, options=options)
+        data = dict(entry.data)
+        if reviewed is not None:
+            if not isinstance(reviewed, dict) or set(reviewed) != set(KEYS):
+                raise EditError("invalid_changes", "Invalid reviewed object sections")
+            if any(
+                not isinstance(ids, list) or any(not isinstance(id_, str) for id_ in ids)
+                for ids in reviewed.values()
+            ):
+                raise EditError("invalid_changes", "Reviewed object IDs must be string lists")
+            available = {key: {obj["id"] for obj in rows} for key, rows in objects(hass).items()}
+            previous = data.get("reviewed_objects") or {}
+            data["reviewed_objects"] = {
+                key: sorted(set(previous.get(key, [])) | (set(reviewed[key]) & available[key]))
+                for key in KEYS
+            }
+        # Validate everything before atomically saving mappings and review state.
+        hass.config_entries.async_update_entry(entry, options=options, data=data)
         return snapshot(hass, entry)
 
 
@@ -205,13 +221,20 @@ async def websocket_get(hass, connection, msg):
 
 
 @websocket_api.websocket_command(
-    {"type": f"{DOMAIN}/editor/save", vol.Required("revision"): str, vol.Required("changes"): dict}
+    {
+        "type": f"{DOMAIN}/editor/save",
+        vol.Required("revision"): str,
+        vol.Required("changes"): dict,
+        vol.Optional("reviewed"): dict,
+    }
 )
 @websocket_api.require_admin
 @websocket_api.async_response
 async def websocket_save(hass, connection, msg):
     try:
-        result = await save(hass, get_manager(hass), msg["revision"], msg["changes"])
+        result = await save(
+            hass, get_manager(hass), msg["revision"], msg["changes"], msg.get("reviewed")
+        )
         connection.send_result(msg["id"], result)
     except EditError as err:
         connection.send_error(msg["id"], err.code, str(err))

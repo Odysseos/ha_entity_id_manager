@@ -286,6 +286,10 @@ try {
     await page.screenshot({ path: process.env.EDITOR_SCREENSHOT });
   await q("#cancel").click();
   await q("#preview-open").click();
+  assert.equal(await q('#preview-backup').isChecked(), true);
+  assert.match(await q('#preview-backup-label').textContent(), /Home Assistant/);
+  assert.equal(await q('#preview-backup-link').getAttribute('href'), '/config/backup');
+
   assert.match(await q('#preview-summary').textContent(), /К переименованию: 3 · Доступно: 2 · Конфликты: 1/);
   await q('#preview-select-all').check();
   assert.equal(await q('#preview-rows input:checked').count(), 2);
@@ -300,6 +304,8 @@ try {
   await q('#preview-rows input[value="valid"]').check();
   await q("#preview-apply").click();
   await q("#preview-dialog").waitFor({ state: "hidden" });
+  assert.equal(await page.evaluate(() => window.test.calls.findLast(call => call.type === 'entity_id_manager/apply').backup), true);
+
   await page.setViewportSize({ width: 1280, height: 900 });
   await page.goto("http://editor.test/");
   await page.evaluate(() => {

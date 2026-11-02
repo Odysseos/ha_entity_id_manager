@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.14.0
+
+- Offer a standard Home Assistant backup before manual rename, enabled by default.
+- Include configuration, registries, database and, on supervised installations, all apps and additional folders.
+- Wait for backup completion and stop without renaming on failure; revalidate the preview afterwards.
+- Store backups in the standard local HA backup location using configured backup encryption.
+
 ## 0.13.0
 
 - Give the same-name segment action its own row and a complete label.

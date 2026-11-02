@@ -704,8 +704,9 @@ export class IDManagerPanel extends (globalThis.HTMLElement || class {}) {
       #editor-dialog[open]{grid-template-rows:32px auto minmax(0,1fr) auto}.editor-footer{min-height:64px}
       .preview-selection{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;margin:12px 0}.preview-selection label{display:flex;align-items:center;gap:8px;margin:0;font:inherit}.preview-selection input{width:18px;height:18px;padding:0;flex:0 0 18px}#preview-summary,#preview-selected{font-size:.9em;color:var(--secondary-text-color,#666)}
       @media(max-width:700px){.editor-pane{grid-template-rows:16px 66px auto 40px auto auto minmax(0,1fr)}.editor-footer{grid-template-columns:1fr;gap:4px}.editor-footer .count{max-width:none}#editor-dialog[open]{grid-template-rows:32px auto minmax(0,1fr) auto}.missing-navigation button{white-space:normal}}
+      .preview-backup{margin-top:16px;padding:12px;background:var(--secondary-background-color,#eee);border-radius:8px}.preview-backup label{display:flex;gap:8px;align-items:flex-start;font:inherit;margin:0}.preview-backup input{width:18px;height:18px;flex:0 0 18px;padding:0;margin:2px 0}.preview-backup p{font-size:.85em;color:var(--secondary-text-color,#666);margin:8px 0}.preview-backup a{font-size:.85em;color:var(--primary-color)}#preview-progress{font-size:.9em;overflow-wrap:anywhere}
     </style><header><ha-menu-button></ha-menu-button><h1>Entity ID Manager</h1></header><main><h2>${w.title}</h2><p>${w.intro}</p><div class="main-actions"><button id="open" class="primary">${w.open}</button><button id="preview-open" class="primary">${w.preview}</button></div><label class="automatic"><input id="automatic" type="checkbox" disabled> ${w.automatic}</label><p id="status" role="status"></p></main>
-    <dialog id="editor-dialog"><div class="heading"><button id="close" aria-label="${w.close}">×</button><h2>${w.title}</h2></div><div class="object-filters" role="group" aria-label="${this.words === WORDS.ru ? "Фильтр списка" : "List filter"}"><span>${this.words === WORDS.ru ? "Фильтр:" : "Filter:"}</span><button id="filter-all"></button><button id="filter-missing"></button><button id="filter-pending"></button><button id="filter-saved"></button><button id="filter-draft"></button><button id="conflict-filter"></button><button id="filter-scope" hidden></button><span id="check-status" role="status"></span></div><div class="tree-layout"><section class="tree-pane"><div id="object-dropdown"><input id="object-search" type="search" aria-label="${w.search}" placeholder="${w.search}" autocomplete="off"><div id="object-list" role="tree" aria-label="${w.choose}"></div></div></section><section class="editor-pane"><label id="object-label">${w.choose}</label><div class="picker"><div class="selected-row"><div id="object" class="object-row" aria-labelledby="object-label"></div><span id="selected-link"></span></div></div><div class="segment-heading"><label for="segment">${w.segment}</label><label id="omit-label"><input id="omit-segment" type="checkbox"><span>${this.words === WORDS.ru ? "Без собственного сегмента ID" : "No own ID segment"}</span></label></div><input id="segment" type="text" autocomplete="off" autocapitalize="none" spellcheck="false"><div class="tools"><button id="from-name"></button><button id="from-current-id" hidden></button><button id="clear">${w.clear}</button><button id="reset">${w.reset}</button></div><div class="bulk-tools"><button id="bulk-copy"></button></div><div class="editor-details"><p id="target-id"></p><div id="omit-suggestion" hidden><span id="omit-reason"></span> <button id="omit-accept"></button></div><div id="bulk-choice" hidden><p id="bulk-question"></p><button id="bulk-empty"></button><button id="bulk-all"></button><button id="bulk-cancel"></button></div><div id="bulk-result" hidden><span id="bulk-message" role="status"></span><button id="bulk-undo"></button></div><p id="validation" class="error" role="status"></p><div id="conflict-detail" class="error" role="status"></div><button id="conflict-more" hidden></button><button id="copy-id" hidden></button><p id="error" class="error" role="alert"></p></div></section></div><div class="editor-footer"><div class="tree-footer"><p id="count" class="count"></p><div class="missing-navigation"><button id="missing-prev"></button><button id="missing-next"></button></div></div><div class="actions"><button id="cancel">${w.cancel}</button><button id="confirm" class="primary">${w.confirm}</button></div></div></dialog><dialog id="preview-dialog"><div class="heading"><button id="preview-close" aria-label="${w.close}">×</button><h2>${w.preview}</h2></div><p>${w.references}</p><div id="preview-summary" role="status"></div><div class="preview-selection"><label><input id="preview-select-all" type="checkbox"><span id="preview-select-label"></span></label><button id="preview-select-none"></button></div><div id="preview-rows"></div><p id="preview-selected" role="status"></p><p id="preview-error" class="error" role="alert"></p><div class="actions"><button id="preview-cancel">${w.cancel}</button><button id="preview-apply" class="primary" disabled>${w.apply}</button></div></dialog>`;
+    <dialog id="editor-dialog"><div class="heading"><button id="close" aria-label="${w.close}">×</button><h2>${w.title}</h2></div><div class="object-filters" role="group" aria-label="${this.words === WORDS.ru ? "Фильтр списка" : "List filter"}"><span>${this.words === WORDS.ru ? "Фильтр:" : "Filter:"}</span><button id="filter-all"></button><button id="filter-missing"></button><button id="filter-pending"></button><button id="filter-saved"></button><button id="filter-draft"></button><button id="conflict-filter"></button><button id="filter-scope" hidden></button><span id="check-status" role="status"></span></div><div class="tree-layout"><section class="tree-pane"><div id="object-dropdown"><input id="object-search" type="search" aria-label="${w.search}" placeholder="${w.search}" autocomplete="off"><div id="object-list" role="tree" aria-label="${w.choose}"></div></div></section><section class="editor-pane"><label id="object-label">${w.choose}</label><div class="picker"><div class="selected-row"><div id="object" class="object-row" aria-labelledby="object-label"></div><span id="selected-link"></span></div></div><div class="segment-heading"><label for="segment">${w.segment}</label><label id="omit-label"><input id="omit-segment" type="checkbox"><span>${this.words === WORDS.ru ? "Без собственного сегмента ID" : "No own ID segment"}</span></label></div><input id="segment" type="text" autocomplete="off" autocapitalize="none" spellcheck="false"><div class="tools"><button id="from-name"></button><button id="from-current-id" hidden></button><button id="clear">${w.clear}</button><button id="reset">${w.reset}</button></div><div class="bulk-tools"><button id="bulk-copy"></button></div><div class="editor-details"><p id="target-id"></p><div id="omit-suggestion" hidden><span id="omit-reason"></span> <button id="omit-accept"></button></div><div id="bulk-choice" hidden><p id="bulk-question"></p><button id="bulk-empty"></button><button id="bulk-all"></button><button id="bulk-cancel"></button></div><div id="bulk-result" hidden><span id="bulk-message" role="status"></span><button id="bulk-undo"></button></div><p id="validation" class="error" role="status"></p><div id="conflict-detail" class="error" role="status"></div><button id="conflict-more" hidden></button><button id="copy-id" hidden></button><p id="error" class="error" role="alert"></p></div></section></div><div class="editor-footer"><div class="tree-footer"><p id="count" class="count"></p><div class="missing-navigation"><button id="missing-prev"></button><button id="missing-next"></button></div></div><div class="actions"><button id="cancel">${w.cancel}</button><button id="confirm" class="primary">${w.confirm}</button></div></div></dialog><dialog id="preview-dialog"><div class="heading"><button id="preview-close" aria-label="${w.close}">×</button><h2>${w.preview}</h2></div><p>${w.references}</p><div id="preview-summary" role="status"></div><div class="preview-selection"><label><input id="preview-select-all" type="checkbox"><span id="preview-select-label"></span></label><button id="preview-select-none"></button></div><div id="preview-rows"></div><p id="preview-selected" role="status"></p><div class="preview-backup"><label><input id="preview-backup" type="checkbox" checked><span id="preview-backup-label"></span></label><p id="preview-backup-description"></p><a href="/config/backup" target="_blank" rel="noopener" id="preview-backup-link"></a></div><p id="preview-progress" role="status"></p><p id="preview-error" class="error" role="alert"></p><div class="actions"><button id="preview-cancel">${w.cancel}</button><button id="preview-apply" class="primary" disabled>${w.apply}</button></div></dialog>`;
     const q = (s) => this.shadowRoot.querySelector(s);
     const menu = q("ha-menu-button");
     if (menu) menu.hass = this._hass;
@@ -933,6 +934,10 @@ export class IDManagerPanel extends (globalThis.HTMLElement || class {}) {
     q("#preview-select-all").indeterminate = count > 0 && count < available.length;
     q("#preview-select-all").disabled = this.previewBusy || !available.length;
     q("#preview-select-none").disabled = this.previewBusy || !count;
+    q("#preview-backup-label").textContent = ru ? "Создать резервную копию Home Assistant перед применением" : "Create a Home Assistant backup before applying";
+    q("#preview-backup-description").textContent = ru ? "Настройки HA, реестры, панели, автоматизации, скрипты и база данных. В HA OS также сохраняются дополнения и дополнительные папки. Применение начнётся после завершения копирования." : "HA configuration, registries, dashboards, automations, scripts and database. On HA OS, apps and additional folders are included too. Changes start after the backup completes.";
+    q("#preview-backup-link").textContent = ru ? "Резервные копии Home Assistant" : "Home Assistant backups";
+    q("#preview-backup").disabled = this.previewBusy;
     q("#preview-selected").textContent = ru ? `Выбрано: ${count} из ${available.length}` : `Selected: ${count} of ${available.length}`;
     q("#preview-apply").textContent = `${ru ? "Применить" : "Apply"} (${count})`;
     q("#preview-apply").disabled = this.previewBusy || !count;
@@ -951,6 +956,8 @@ export class IDManagerPanel extends (globalThis.HTMLElement || class {}) {
       });
       q("#preview-rows").replaceChildren();
       q("#preview-error").textContent = "";
+      q("#preview-progress").textContent = "";
+      q("#preview-backup").checked = true;
       if (!this.previewRows.length)
         q("#preview-rows").textContent = w.noChanges;
       for (const row of this.previewRows) {
@@ -1006,12 +1013,18 @@ export class IDManagerPanel extends (globalThis.HTMLElement || class {}) {
         new: next,
       }));
     if (!rows.length) return;
+    const backup = q("#preview-backup").checked;
+    q("#preview-error").textContent = "";
+    q("#preview-progress").textContent = this.words === WORDS.ru
+      ? backup ? "Резервное копирование Home Assistant и применение изменений… Не закрывайте окно." : "Применение изменений…"
+      : backup ? "Backing up Home Assistant and applying changes… Keep this window open." : "Applying changes…";
     this.previewBusy = true;
     this.updatePreviewControls();
     try {
       const result = await this._hass.callWS({
         type: "entity_id_manager/apply",
         rows,
+        backup,
       });
       this.previewBusy = false;
       this.closePreview();
@@ -1019,6 +1032,7 @@ export class IDManagerPanel extends (globalThis.HTMLElement || class {}) {
       const ru = this.words === WORDS.ru;
       const lines = [`${this.words.applied}: ${result.count}`];
       if (report) {
+        if (report.homeassistant_backup) lines.push(`${ru ? "Резервная копия HA" : "HA backup"}: ${report.homeassistant_backup}`);
         lines.push(`${ru ? "Обновлено ссылок" : "References updated"}: ${report.references}`);
         if (report.backup) lines.push(`${ru ? "Резервная копия" : "Backup"}: ${report.backup}`);
         if (report.restart_required?.length) lines.push(`${ru ? "Для применения настроек нужен перезапуск HA" : "Restart HA to apply settings"}: ${report.restart_required.join(", ")}`);
@@ -1028,6 +1042,7 @@ export class IDManagerPanel extends (globalThis.HTMLElement || class {}) {
       q("#preview-error").textContent =
         `${this.words.previewError} ${error.message || ""}`;
     } finally {
+      q("#preview-progress").textContent = "";
       this.previewBusy = false;
       this.updatePreviewControls();
     }

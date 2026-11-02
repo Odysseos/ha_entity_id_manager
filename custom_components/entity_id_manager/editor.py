@@ -252,7 +252,7 @@ async def websocket_preview(hass, connection, msg):
         connection.send_error(msg["id"], err.code, str(err))
 
 
-async def apply_preview(manager, rows):
+async def apply_preview(manager, rows, *, backup=False):
     from .naming import Rename
 
     if not rows:
@@ -270,18 +270,26 @@ async def apply_preview(manager, rows):
             raise EditError("invalid_changes", "Duplicate preview row")
         ids.add(row["registry_id"])
         selected.append(Rename(**row))
-    references = await manager.apply(selected)
+    references = await manager.apply(selected, backup=backup)
     return {"count": len(selected), "references": references}
 
 
-@websocket_api.websocket_command({"type": f"{DOMAIN}/apply", vol.Required("rows"): [dict]})
+@websocket_api.websocket_command(
+    {
+        "type": f"{DOMAIN}/apply",
+        vol.Required("rows"): [dict],
+        vol.Optional("backup", default=True): bool,
+    }
+)
 @websocket_api.require_admin
 @websocket_api.async_response
 async def websocket_apply(hass, connection, msg):
     from homeassistant.exceptions import HomeAssistantError
 
     try:
-        connection.send_result(msg["id"], await apply_preview(get_manager(hass), msg["rows"]))
+        connection.send_result(
+            msg["id"], await apply_preview(get_manager(hass), msg["rows"], backup=msg["backup"])
+        )
     except EditError as err:
         connection.send_error(msg["id"], err.code, str(err))
     except HomeAssistantError as err:

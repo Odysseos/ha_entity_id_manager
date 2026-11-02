@@ -90,7 +90,7 @@ class Manager:
             key=lambda row: row.old,
         )
 
-    async def apply(self, selected):
+    async def apply(self, selected, *, backup=False):
         async with self.lock:
             current = {row.registry_id: row for row in self.snapshot()}
             registry = er.async_get(self.hass)
@@ -99,6 +99,22 @@ class Manager:
                 if current.get(row.registry_id) != row or row.conflict:
                     raise HomeAssistantError(
                         "Preview is stale or contains conflicts. Open a new preview."
+                    )
+            backup_name = None
+            if backup:
+                from .backup import create_backup
+
+                try:
+                    backup_name = await create_backup(self.hass)
+                except Exception as err:
+                    raise HomeAssistantError(
+                        f"Home Assistant backup failed; no renames were applied: {err}"
+                    ) from err
+                # Registries or mappings may change while a long backup is running.
+                current = {row.registry_id: row for row in self.snapshot()}
+                if any(current.get(row.registry_id) != row or row.conflict for row in selected):
+                    raise HomeAssistantError(
+                        "Preview changed during backup. No renames were applied. Open a new preview."
                     )
             references = await ReferenceUpdate(
                 self.hass, {row.old: row.new for row in selected}
@@ -114,7 +130,10 @@ class Manager:
                 for row in selected:
                     registry.async_update_entity(row.old, new_entity_id=row.new)
                     applied.append(row)
-                return await references.apply()
+                report = await references.apply()
+                if backup_name:
+                    report["homeassistant_backup"] = backup_name
+                return report
             except (Exception, asyncio.CancelledError) as err:
                 rollback_errors = []
                 for row in reversed(applied):

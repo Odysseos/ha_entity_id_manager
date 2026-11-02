@@ -82,6 +82,28 @@ try {
   await select("entities", "e");
   assert.equal(await q('#object .id-missing').textContent(), 'Не задан');
   assert.ok(await q('.virtual-tree-item.missing-segment').count() > 0);
+  const extraction = async (entityId, device, suffix) => {
+    await page.locator('entity-id-manager-panel').evaluate((panel, values) => {
+      const entity = panel.store.byId.entities.get('e');
+      entity.entity_id = values.entityId;
+      entity.default_segments = {area: 'kids_room', device: values.device, suffix: 'translated_name'};
+      panel.refresh();
+    }, {entityId, device});
+    await q('#from-current-id').click();
+    assert.equal(await q('#segment').inputValue(), suffix === '-' ? '' : suffix);
+    assert.equal(await q('#omit-segment').isChecked(), suffix === '-');
+  };
+  await extraction('binary_sensor.carbon_connectivity', 'carbon', 'connectivity');
+  await extraction('sensor.samsung_m2020_series_uptime', 'samsung_m2020_series', 'uptime');
+  await extraction('sensor.samsung_m2020_series', 'samsung_m2020_series', '-');
+  await extraction('sensor.samsung_m2020_series_uptime', 'samsung_m2020_series', 'uptime');
+  await page.locator('entity-id-manager-panel').evaluate(panel => {
+    const entity = panel.store.byId.entities.get('e');
+    entity.entity_id = 'sensor.test';
+    delete entity.default_segments;
+    panel.refresh();
+  });
+  await q('#reset').click();
   await q('#from-name').click();
   assert.equal(await q('#segment').inputValue(), 'temperatura');
   assert.equal(await q('#omit-segment').isChecked(), false);

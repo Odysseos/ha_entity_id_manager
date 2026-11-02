@@ -349,3 +349,25 @@ for (const suffix of ["low_battery_valve_state", "linkquality"]) {
   assert.equal(group.namesakeTargets("entities", entities[0].id, false).length, 3);
 }
 console.log("Linkquality and low battery: unset segments counted independently of rename plans: passed");
+
+const existingIdCases = [
+  ['binary_sensor.carbon_connectivity', 'kids_room', 'carbon', 'connectivity'],
+  ['sensor.samsung_m2020_series_uptime', 'kids_room', 'samsung_m2020_series', 'uptime'],
+  ['sensor.kids_room_samsung_m2020_series_uptime', 'kids_room', 'samsung_m2020_series', 'uptime'],
+  ['sensor.carbon', 'kids_room', 'carbon', '-'],
+  ['sensor.kids_room_carbon', 'kids_room', 'carbon', '-'],
+  ['sensor.carbonate_temperature', 'kids_room', 'carbon', 'carbonate_temperature'],
+  ['sensor.other_carbon_temperature', 'kids_room', 'carbon', 'other_carbon_temperature'],
+  ['sensor.carbon_input_tray_1', '', 'carbon', 'input_tray_1'],
+  ['sensor.kids_room_temperature', 'kids_room', '', 'temperature'],
+  ['sensor.uptime', '', '', 'uptime'],
+];
+for (const [entity_id, area, device, expected] of existingIdCases) {
+  const current = new DraftStore({mappings: {areas: {a: 'changed_area'}, devices: {d: 'changed_device'}, entities: {}}, objects: {
+    areas: [], devices: [], entities: [{id: 'e', name: 'Переведённое имя', entity_id, default_segments: {area, device, suffix: 'ignored'}}],
+  }});
+  current.set('devices', 'd', 'draft_device');
+  assert.equal(current.currentIdSegment('e'), expected, entity_id);
+}
+assert.equal(store.currentIdSegment('missing'), null);
+console.log('Extract current ID: exact parent prefixes, unchanged drafts, empty suffix and boundaries: passed');

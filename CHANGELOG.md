@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.12.0
+
+- Fill entity segments from current entity IDs, removing exact prefixes derived from current parent names.
+- Support domain removal, longest area/device prefixes and explicit omission when no own segment remains.
+- Keep extraction independent of saved parent overrides and drafts; wrap action buttons on narrow screens.
+
 ## 0.11.1
 
 - Count and fill unset same-name segments even when their current full entity IDs already match generated IDs.

@@ -218,6 +218,23 @@ export class DraftStore {
     const object = this.byId[key].get(id);
     return object?.default_segment ?? (key === "entities" ? object?.default_segments?.suffix : "") ?? "";
   }
+  currentIdSegment(id) {
+    const object = this.byId.entities.get(id);
+    const current = object?.entity_id;
+    if (!current?.includes(".")) return null;
+    const own = current.slice(current.indexOf(".") + 1);
+    if (!own) return null;
+    // Defaults contain transliterations of current parent names from HA.
+    // Saved overrides and session drafts must not affect prefix recognition.
+    const {area = "", device = ""} = object.default_segments || {};
+    const prefixes = [...new Set([area && device ? `${area}_${device}` : "", device, area].filter(Boolean))]
+      .sort((a, b) => b.length - a.length);
+    for (const prefix of prefixes) {
+      if (own === prefix) return "-";
+      if (own.startsWith(`${prefix}_`)) return own.slice(prefix.length + 1);
+    }
+    return own;
+  }
   entityTarget(entity, savedOnly = false) {
     if (!entity?.default_segments || !entity.entity_id) return "";
     const value = (key, id) => savedOnly ? this.saved[key][id] || "" : this.value(key, id);
@@ -656,7 +673,7 @@ export class IDManagerPanel extends (globalThis.HTMLElement || class {}) {
       #editor-dialog .object-filters{flex-wrap:wrap;overflow:visible;white-space:normal;min-height:44px}
       @media(max-width:700px){#editor-dialog[open]{grid-template-rows:32px auto minmax(0,1fr) 56px}#editor-dialog .object-filters{flex-wrap:wrap;white-space:normal;overflow:visible}}
     </style><header><ha-menu-button></ha-menu-button><h1>Entity ID Manager</h1></header><main><h2>${w.title}</h2><p>${w.intro}</p><div class="main-actions"><button id="open" class="primary">${w.open}</button><button id="preview-open" class="primary">${w.preview}</button></div><label class="automatic"><input id="automatic" type="checkbox" disabled> ${w.automatic}</label><p id="status" role="status"></p></main>
-    <dialog id="editor-dialog"><div class="heading"><button id="close" aria-label="${w.close}">×</button><h2>${w.title}</h2></div><div class="object-filters" role="group" aria-label="${this.words === WORDS.ru ? "Фильтр списка" : "List filter"}"><span>${this.words === WORDS.ru ? "Фильтр:" : "Filter:"}</span><button id="filter-all"></button><button id="filter-missing"></button><button id="filter-pending"></button><button id="filter-saved"></button><button id="filter-draft"></button><button id="conflict-filter"></button><button id="filter-scope" hidden></button><span id="check-status" role="status"></span></div><div class="tree-layout"><section class="tree-pane"><div id="object-dropdown"><input id="object-search" type="search" aria-label="${w.search}" placeholder="${w.search}" autocomplete="off"><div id="object-list" role="tree" aria-label="${w.choose}"></div></div></section><section class="editor-pane"><label id="object-label">${w.choose}</label><div class="picker"><div class="selected-row"><div id="object" class="object-row" aria-labelledby="object-label"></div><span id="selected-link"></span></div></div><div class="segment-heading"><label for="segment">${w.segment}</label><label id="omit-label"><input id="omit-segment" type="checkbox"><span>${this.words === WORDS.ru ? "Без собственного сегмента ID" : "No own ID segment"}</span></label></div><input id="segment" type="text" autocomplete="off" autocapitalize="none" spellcheck="false"><div class="tools"><button id="from-name"></button><button id="clear">${w.clear}</button><button id="reset">${w.reset}</button><button id="bulk-copy"></button></div><div class="editor-details"><p id="target-id"></p><div id="omit-suggestion" hidden><span id="omit-reason"></span> <button id="omit-accept"></button></div><div id="bulk-choice" hidden><p id="bulk-question"></p><button id="bulk-empty"></button><button id="bulk-all"></button><button id="bulk-cancel"></button></div><div id="bulk-result" hidden><span id="bulk-message" role="status"></span><button id="bulk-undo"></button></div><p id="validation" class="error" role="status"></p><div id="conflict-detail" class="error" role="status"></div><button id="conflict-more" hidden></button><button id="copy-id" hidden></button><p id="error" class="error" role="alert"></p></div></section></div><div class="editor-footer"><p id="count" class="count"></p><div class="actions"><button id="cancel">${w.cancel}</button><button id="confirm" class="primary">${w.confirm}</button></div></div></dialog><dialog id="preview-dialog"><div class="heading"><button id="preview-close" aria-label="${w.close}">×</button><h2>${w.preview}</h2></div><p>${w.references}</p><div id="preview-rows"></div><p id="preview-error" class="error" role="alert"></p><div class="actions"><button id="preview-cancel">${w.cancel}</button><button id="preview-apply" class="primary" disabled>${w.apply}</button></div></dialog>`;
+    <dialog id="editor-dialog"><div class="heading"><button id="close" aria-label="${w.close}">×</button><h2>${w.title}</h2></div><div class="object-filters" role="group" aria-label="${this.words === WORDS.ru ? "Фильтр списка" : "List filter"}"><span>${this.words === WORDS.ru ? "Фильтр:" : "Filter:"}</span><button id="filter-all"></button><button id="filter-missing"></button><button id="filter-pending"></button><button id="filter-saved"></button><button id="filter-draft"></button><button id="conflict-filter"></button><button id="filter-scope" hidden></button><span id="check-status" role="status"></span></div><div class="tree-layout"><section class="tree-pane"><div id="object-dropdown"><input id="object-search" type="search" aria-label="${w.search}" placeholder="${w.search}" autocomplete="off"><div id="object-list" role="tree" aria-label="${w.choose}"></div></div></section><section class="editor-pane"><label id="object-label">${w.choose}</label><div class="picker"><div class="selected-row"><div id="object" class="object-row" aria-labelledby="object-label"></div><span id="selected-link"></span></div></div><div class="segment-heading"><label for="segment">${w.segment}</label><label id="omit-label"><input id="omit-segment" type="checkbox"><span>${this.words === WORDS.ru ? "Без собственного сегмента ID" : "No own ID segment"}</span></label></div><input id="segment" type="text" autocomplete="off" autocapitalize="none" spellcheck="false"><div class="tools"><button id="from-name"></button><button id="from-current-id" hidden></button><button id="clear">${w.clear}</button><button id="reset">${w.reset}</button><button id="bulk-copy"></button></div><div class="editor-details"><p id="target-id"></p><div id="omit-suggestion" hidden><span id="omit-reason"></span> <button id="omit-accept"></button></div><div id="bulk-choice" hidden><p id="bulk-question"></p><button id="bulk-empty"></button><button id="bulk-all"></button><button id="bulk-cancel"></button></div><div id="bulk-result" hidden><span id="bulk-message" role="status"></span><button id="bulk-undo"></button></div><p id="validation" class="error" role="status"></p><div id="conflict-detail" class="error" role="status"></div><button id="conflict-more" hidden></button><button id="copy-id" hidden></button><p id="error" class="error" role="alert"></p></div></section></div><div class="editor-footer"><p id="count" class="count"></p><div class="actions"><button id="cancel">${w.cancel}</button><button id="confirm" class="primary">${w.confirm}</button></div></div></dialog><dialog id="preview-dialog"><div class="heading"><button id="preview-close" aria-label="${w.close}">×</button><h2>${w.preview}</h2></div><p>${w.references}</p><div id="preview-rows"></div><p id="preview-error" class="error" role="alert"></p><div class="actions"><button id="preview-cancel">${w.cancel}</button><button id="preview-apply" class="primary" disabled>${w.apply}</button></div></dialog>`;
     const q = (s) => this.shadowRoot.querySelector(s);
     const menu = q("ha-menu-button");
     if (menu) menu.hass = this._hass;
@@ -720,6 +737,14 @@ export class IDManagerPanel extends (globalThis.HTMLElement || class {}) {
     q("#segment").oninput = (e) => {
       this.store.set(this.kind, this.selected[this.kind], e.target.value);
       this.refresh();
+    };
+    q("#from-current-id").onclick = () => {
+      const id = this.selected.entities;
+      const value = this.store.currentIdSegment(id);
+      if (this.kind !== "entities" || !value || !(value === "-" || SEGMENT.test(value))) return;
+      if (value === "-") this.store.omit(id, true);
+      else this.store.set("entities", id, value);
+      this.fill();
     };
     q("#from-name").onclick = () => {
       this.store.set(this.kind, this.selected[this.kind], this.store.defaultSegment(this.kind, this.selected[this.kind]));
@@ -1353,6 +1378,14 @@ export class IDManagerPanel extends (globalThis.HTMLElement || class {}) {
     q("#filter-saved").title = ru ? "Переименование по сохранённым настройкам ещё не применено" : "Renaming based on saved settings has not been applied yet";
     q("#filter-pending").title = ru ? "Итоговый ID отличается от текущего: сохранённые настройки и черновик" : "Resulting ID differs from the current ID: saved settings and draft";
     q("#filter-draft").title = ru ? "Объекты, изменённые в текущем сеансе" : "Objects changed in this session";
+    const extracted = this.kind === "entities" ? this.store.currentIdSegment(id) : null;
+    q("#from-current-id").hidden = this.kind !== "entities";
+    q("#from-current-id").textContent = ru ? "Из текущего ID" : "From current ID";
+    q("#from-current-id").disabled = this.busy || !extracted || !(extracted === "-" || SEGMENT.test(extracted));
+    q("#from-current-id").title = extracted === "-"
+      ? (ru ? "В текущем ID нет собственного сегмента" : "The current ID has no own segment")
+      : extracted ? `${ru ? "Подставить" : "Insert"}: ${extracted}`
+      : (ru ? "Текущий ID недоступен" : "Current ID is unavailable");
     q("#from-name").textContent = ru ? "Из названия" : "From name";
     q("#from-name").title = ru ? "Заполнить сегмент значением по умолчанию, используемым генератором" : "Fill the segment with the default value used by the generator";
     q("#from-name").disabled = this.busy || !id || !this.store.defaultSegment(this.kind, id);

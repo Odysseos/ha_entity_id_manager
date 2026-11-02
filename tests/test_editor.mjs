@@ -285,3 +285,45 @@ assert.equal(model.state("entities:h2").segments.at(-1).value, "new_unique_segme
 humidity.undoBulk();
 model.destroy();
 console.log("Nonvisual model changes synchronously without DOM: passed");
+
+// Missing segments, saved rename plans and drafts describe different states.
+const filters = new DraftStore({
+  mappings: {areas: {a: 'bathroom'}, devices: {}, entities: {omitted: '-'}},
+  objects: {
+    areas: [{id: 'a', name: 'Ванная', default_segment: 'vannaya'}, {id: 'empty', name: 'Кладовая', default_segment: 'kladovaya'}],
+    devices: [{id: 'd', name: 'Сенсор', area_id: 'a', default_segment: 'sensor'}],
+    entities: [
+      {id: 'e', name: 'Влажность', area_id: 'a', device_id: 'd', entity_id: 'sensor.old', default_segment: 'vlazhnost', default_segments: {area: 'vannaya', device: 'sensor', suffix: 'vlazhnost'}},
+      {id: 'omitted', name: 'Основная', area_id: 'a', device_id: 'd', entity_id: 'light.bathroom_sensor', default_segment: 'state', default_segments: {area: 'vannaya', device: 'sensor', suffix: 'state'}},
+      {id: 'untouched', name: 'Новая', entity_id: 'sensor.keep', default_segments: {area: '', device: '', suffix: 'different'}},
+    ],
+  },
+});
+assert.deepEqual([...filters.filterSets().saved], ['entities:e']);
+assert.deepEqual([...filters.filterSets().pending], ['entities:e']);
+assert.ok(filters.filterSets().missing.has('areas:empty'));
+assert.ok(filters.filterSets().missing.has('devices:d'));
+assert.ok(filters.filterSets().missing.has('entities:e'));
+assert.ok(!filters.filterSets().missing.has('entities:omitted'));
+assert.equal(filters.defaultSegment('areas', 'empty'), 'kladovaya');
+assert.equal(filters.defaultSegment('devices', 'd'), 'sensor');
+assert.equal(filters.defaultSegment('entities', 'e'), 'vlazhnost');
+const filterModel = new TreeModel(filters);
+filterModel.update({query: '', conflictOnly: false, conflicts: {}, scope: null, filter: 'draft'});
+assert.equal(filterModel.rows.length, 0);
+filters.set('entities', 'e', 'humidity');
+assert.ok(filterModel.rows.some(row => row.key === 'entities:e'));
+assert.ok(filterModel.rows.some(row => row.key === 'areas:a'));
+assert.deepEqual([...filters.filterSets().draft], ['entities:e']);
+assert.equal(filters.entityTarget(filters.byId.entities.get('e')), 'sensor.bathroom_sensor_humidity');
+filters.set('entities', 'e', 'old');
+assert.ok(filters.filterSets().saved.has('entities:e'));
+filters.set('areas', 'a', '');
+filters.set('entities', 'e', '');
+assert.ok(!filters.filterSets().pending.has('entities:e'));
+assert.ok(filters.filterSets().saved.has('entities:e'));
+filters.omit('e', true);
+filters.set('entities', 'e', filters.defaultSegment('entities', 'e'));
+assert.equal(filters.value('entities', 'e'), 'vlazhnost');
+filterModel.destroy();
+console.log('Segment state filters, ancestor retention and generator defaults: passed');

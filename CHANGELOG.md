@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.11.0
+
+- Mark unset segments for all object types with a left-edge stripe and a localized Not set chip.
+- Add missing-segment, pending rename, saved rename and session draft filters with live counts.
+- Fill segments from generator defaults without saving or renaming; preserve virtual tree rendering.
+
 ## 0.10.1
 
 - Display special ID values in angle brackets: omitted segments and localized area/device ID placeholders.

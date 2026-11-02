@@ -58,7 +58,12 @@ def objects(hass, fallbacks=None):
 
     result = {
         "areas": [
-            {"id": obj.id, "name": obj.name, "icon": obj.icon or "mdi:floor-plan"}
+            {
+                "id": obj.id,
+                "name": obj.name,
+                "icon": obj.icon or "mdi:floor-plan",
+                "default_segment": slugify(obj.name),
+            }
             for obj in areas.areas.values()
         ],
         "devices": [],
@@ -72,6 +77,7 @@ def objects(hass, fallbacks=None):
                 "area_name": area_name(dr.async_get_effective_area_id(hass, obj)),
                 "area_id": dr.async_get_effective_area_id(hass, obj),
                 "icon": "mdi:devices",
+                "default_segment": slugify(obj.name_by_user or obj.name or "device"),
                 "description": " · ".join(
                     dict.fromkeys(
                         value
@@ -100,6 +106,7 @@ def objects(hass, fallbacks=None):
                 "id": obj.id,
                 "name": er.async_get_unprefixed_name(hass, obj) or obj.entity_id,
                 "entity_id": obj.entity_id,
+                "default_segment": default_suffix,
                 "omit_candidate": bool(
                     obj.device_id and obj.has_entity_name and not obj.original_name
                 ),

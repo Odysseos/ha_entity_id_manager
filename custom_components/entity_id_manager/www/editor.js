@@ -153,6 +153,7 @@ export class DraftStore {
     const next = value.trim();
     if (next === (this.saved[key][id] || "")) delete this.drafts[key][id];
     else this.drafts[key][id] = next;
+    this.filterCache = null;
     this.emit();
   }
   omit(id, enabled) {
@@ -213,15 +214,37 @@ export class DraftStore {
       (object) => object.id !== id,
     );
   }
-  entityTarget(entity) {
+  defaultSegment(key, id) {
+    const object = this.byId[key].get(id);
+    return object?.default_segment ?? (key === "entities" ? object?.default_segments?.suffix : "") ?? "";
+  }
+  entityTarget(entity, savedOnly = false) {
     if (!entity?.default_segments || !entity.entity_id) return "";
+    const value = (key, id) => savedOnly ? this.saved[key][id] || "" : this.value(key, id);
+    const area = value("areas", entity.area_id), device = value("devices", entity.device_id), own = value("entities", entity.id);
+    if (!(area || device || own)) return entity.entity_id;
     const defaults = entity.default_segments;
-    const suffix = this.value("entities", entity.id) || defaults.suffix;
+    const suffix = own || defaults.suffix;
     return entity.entity_id.split(".", 1)[0] + "." + [
-      this.value("areas", entity.area_id) || defaults.area,
-      this.value("devices", entity.device_id) || defaults.device,
-      suffix === "-" ? "" : suffix,
+      area || defaults.area, device || defaults.device, suffix === "-" ? "" : suffix,
     ].filter(Boolean).join("_");
+  }
+  filterSets() {
+    if (this.filterCache) return this.filterCache;
+    const sets = Object.fromEntries(["missing", "pending", "saved", "draft"].map(key => [key, new Set()]));
+    for (const key of KEYS) for (const object of this.objects[key]) {
+      const token = `${key}:${object.id}`;
+      if (!this.value(key, object.id)) sets.missing.add(token);
+      if (Object.hasOwn(this.drafts[key], object.id)) sets.draft.add(token);
+      if (key === "entities") {
+        const current = object.entity_id;
+        const pending = this.entityTarget(object), saved = this.entityTarget(object, true);
+        if (pending && pending !== current) sets.pending.add(token);
+        if (saved && saved !== current) sets.saved.add(token);
+      }
+    }
+    this.filterCache = sets;
+    return sets;
   }
   namesakeTargets(key, id, replace) {
     const after = this.value(key, id);
@@ -342,6 +365,7 @@ export class TreeModel {
     this.closed = new Set();
     this.query = "";
     this.conflictOnly = false;
+    this.filter = "all";
     this.conflicts = {};
     this.scope = null;
     this.revision = 0;
@@ -356,7 +380,7 @@ export class TreeModel {
     index(this.roots);
     this.unsubscribe = store.subscribe(() => {
       this.revision++;
-      if (this.query) this.rebuild();
+      if (this.query || this.filter !== "all") this.rebuild();
     });
     this.rebuild();
   }
@@ -370,9 +394,10 @@ export class TreeModel {
         }
       : null;
   }
-  update({ query, conflictOnly, conflicts, scope }) {
+  update({ query, conflictOnly, conflicts, scope, filter = "all" }) {
     const next = query.trim().toLocaleLowerCase();
     if (
+      filter === this.filter &&
       next === this.query &&
       conflictOnly === this.conflictOnly &&
       conflicts === this.conflicts &&
@@ -380,9 +405,11 @@ export class TreeModel {
     )
       return;
     const structural =
+      filter !== this.filter ||
       next !== this.query ||
       conflictOnly !== this.conflictOnly ||
       (conflictOnly && (conflicts !== this.conflicts || scope !== this.scope));
+    this.filter = filter;
     this.query = next;
     this.conflictOnly = conflictOnly;
     this.conflicts = conflicts;
@@ -391,7 +418,7 @@ export class TreeModel {
     else this.revision++;
   }
   toggle(key) {
-    if (this.query || this.conflictOnly) return;
+    if (this.query || this.conflictOnly || this.filter !== "all") return;
     if (this.closed.has(key)) this.closed.delete(key);
     else this.closed.add(key);
     this.rebuild();
@@ -405,6 +432,7 @@ export class TreeModel {
     this.rebuild();
   }
   rebuild() {
+    const selectedSet = this.filter === "all" ? null : this.store.filterSets()[this.filter];
     const filtered = (nodes, ancestor = false) =>
       nodes.flatMap((node) => {
         const object = node.object;
@@ -428,6 +456,7 @@ export class TreeModel {
         const children = filtered(node.children, Boolean(this.query && match));
         const own =
           match &&
+          (!selectedSet || (object && selectedSet.has(`${node.kind}:${object.id}`))) &&
           (!this.conflictOnly ||
             (node.kind === "entities" &&
               this.conflicts[object.id]?.length &&
@@ -447,7 +476,7 @@ export class TreeModel {
                 ? 48
                 : 36;
         const expanded = Boolean(
-          this.query || this.conflictOnly || !this.closed.has(node.key),
+          this.query || this.conflictOnly || this.filter !== "all" || !this.closed.has(node.key),
         );
         this.rows.push({
           key: node.key,
@@ -632,8 +661,13 @@ export class IDManagerPanel extends (globalThis.HTMLElement || class {}) {
       #editor-dialog #object::after{display:none}
       @media(max-width:700px){#editor-dialog .object-filters{flex-wrap:nowrap;align-content:normal;overflow-x:auto;white-space:nowrap}#editor-dialog .object-filters > *{flex-shrink:0}#editor-dialog[open]{grid-template-rows:32px 40px minmax(0,1fr) 56px}.tree-layout{grid-template-columns:1fr;grid-template-rows:minmax(100px,1fr) minmax(220px,1fr);gap:8px}.editor-pane{grid-template-rows:16px 66px auto 40px auto minmax(0,1fr)}#editor-dialog #segment{height:40px}.editor-pane .tools{font:inherit}.tree-select .object-description,.tree-select .object-current-id{display:none}}
       .virtual-tree-surface{position:relative;width:100%;contain:layout style}.virtual-tree-item{position:absolute;inset-inline:0;overflow:hidden;box-sizing:border-box}.virtual-tree-item > .tree-line{height:100%;content-visibility:visible;contain-intrinsic-size:none}.virtual-tree-item .tree-select{height:100%;box-sizing:border-box;align-content:center;overflow:hidden}.virtual-tree-item .object-own{flex-wrap:nowrap;overflow:hidden}.virtual-tree-item .id-chip{flex-shrink:0}#object-list{padding:0;position:relative;overflow-anchor:none}
+      .id-missing{font:inherit;font-size:.75em;color:var(--secondary-text-color,#666);background:color-mix(in srgb,var(--primary-text-color,#222) 7%,var(--card-background-color,white));padding:2px 6px;border-radius:4px;white-space:nowrap}
+      .virtual-tree-item.missing-segment:before{content:"";position:absolute;inset-inline-start:0;top:5px;bottom:5px;width:4px;border-radius:0 3px 3px 0;background:var(--id-missing-segment-color,#9676be);z-index:1;pointer-events:none}
+      #editor-dialog[open]{grid-template-rows:32px auto minmax(0,1fr) 64px}
+      #editor-dialog .object-filters{flex-wrap:wrap;overflow:visible;white-space:normal;min-height:44px}
+      @media(max-width:700px){#editor-dialog[open]{grid-template-rows:32px auto minmax(0,1fr) 56px}#editor-dialog .object-filters{flex-wrap:wrap;white-space:normal;overflow:visible}}
     </style><header><ha-menu-button></ha-menu-button><h1>Entity ID Manager</h1></header><main><h2>${w.title}</h2><p>${w.intro}</p><div class="main-actions"><button id="open" class="primary">${w.open}</button><button id="preview-open" class="primary">${w.preview}</button></div><label class="automatic"><input id="automatic" type="checkbox" disabled> ${w.automatic}</label><p id="status" role="status"></p></main>
-    <dialog id="editor-dialog"><div class="heading"><button id="close" aria-label="${w.close}">×</button><h2>${w.title}</h2></div><div class="object-filters" role="group" aria-label="${this.words === WORDS.ru ? "Фильтр списка" : "List filter"}"><span>${this.words === WORDS.ru ? "Фильтр:" : "Filter:"}</span><button id="filter-all"></button><button id="conflict-filter"></button><button id="filter-scope" hidden></button><span id="check-status" role="status"></span></div><div class="tree-layout"><section class="tree-pane"><div id="object-dropdown"><input id="object-search" type="search" aria-label="${w.search}" placeholder="${w.search}" autocomplete="off"><div id="object-list" role="tree" aria-label="${w.choose}"></div></div></section><section class="editor-pane"><label id="object-label">${w.choose}</label><div class="picker"><div class="selected-row"><div id="object" class="object-row" aria-labelledby="object-label"></div><span id="selected-link"></span></div></div><div class="segment-heading"><label for="segment">${w.segment}</label><label id="omit-label"><input id="omit-segment" type="checkbox"><span>${this.words === WORDS.ru ? "Без собственного сегмента ID" : "No own ID segment"}</span></label></div><input id="segment" type="text" autocomplete="off" autocapitalize="none" spellcheck="false"><div class="tools"><button id="clear">${w.clear}</button><button id="reset">${w.reset}</button><button id="bulk-copy"></button></div><div class="editor-details"><p id="target-id"></p><div id="omit-suggestion" hidden><span id="omit-reason"></span> <button id="omit-accept"></button></div><div id="bulk-choice" hidden><p id="bulk-question"></p><button id="bulk-empty"></button><button id="bulk-all"></button><button id="bulk-cancel"></button></div><div id="bulk-result" hidden><span id="bulk-message" role="status"></span><button id="bulk-undo"></button></div><p id="validation" class="error" role="status"></p><div id="conflict-detail" class="error" role="status"></div><button id="conflict-more" hidden></button><button id="copy-id" hidden></button><p id="error" class="error" role="alert"></p></div></section></div><div class="editor-footer"><p id="count" class="count"></p><div class="actions"><button id="cancel">${w.cancel}</button><button id="confirm" class="primary">${w.confirm}</button></div></div></dialog><dialog id="preview-dialog"><div class="heading"><button id="preview-close" aria-label="${w.close}">×</button><h2>${w.preview}</h2></div><p>${w.references}</p><div id="preview-rows"></div><p id="preview-error" class="error" role="alert"></p><div class="actions"><button id="preview-cancel">${w.cancel}</button><button id="preview-apply" class="primary" disabled>${w.apply}</button></div></dialog>`;
+    <dialog id="editor-dialog"><div class="heading"><button id="close" aria-label="${w.close}">×</button><h2>${w.title}</h2></div><div class="object-filters" role="group" aria-label="${this.words === WORDS.ru ? "Фильтр списка" : "List filter"}"><span>${this.words === WORDS.ru ? "Фильтр:" : "Filter:"}</span><button id="filter-all"></button><button id="filter-missing"></button><button id="filter-pending"></button><button id="filter-saved"></button><button id="filter-draft"></button><button id="conflict-filter"></button><button id="filter-scope" hidden></button><span id="check-status" role="status"></span></div><div class="tree-layout"><section class="tree-pane"><div id="object-dropdown"><input id="object-search" type="search" aria-label="${w.search}" placeholder="${w.search}" autocomplete="off"><div id="object-list" role="tree" aria-label="${w.choose}"></div></div></section><section class="editor-pane"><label id="object-label">${w.choose}</label><div class="picker"><div class="selected-row"><div id="object" class="object-row" aria-labelledby="object-label"></div><span id="selected-link"></span></div></div><div class="segment-heading"><label for="segment">${w.segment}</label><label id="omit-label"><input id="omit-segment" type="checkbox"><span>${this.words === WORDS.ru ? "Без собственного сегмента ID" : "No own ID segment"}</span></label></div><input id="segment" type="text" autocomplete="off" autocapitalize="none" spellcheck="false"><div class="tools"><button id="from-name"></button><button id="clear">${w.clear}</button><button id="reset">${w.reset}</button><button id="bulk-copy"></button></div><div class="editor-details"><p id="target-id"></p><div id="omit-suggestion" hidden><span id="omit-reason"></span> <button id="omit-accept"></button></div><div id="bulk-choice" hidden><p id="bulk-question"></p><button id="bulk-empty"></button><button id="bulk-all"></button><button id="bulk-cancel"></button></div><div id="bulk-result" hidden><span id="bulk-message" role="status"></span><button id="bulk-undo"></button></div><p id="validation" class="error" role="status"></p><div id="conflict-detail" class="error" role="status"></div><button id="conflict-more" hidden></button><button id="copy-id" hidden></button><p id="error" class="error" role="alert"></p></div></section></div><div class="editor-footer"><p id="count" class="count"></p><div class="actions"><button id="cancel">${w.cancel}</button><button id="confirm" class="primary">${w.confirm}</button></div></div></dialog><dialog id="preview-dialog"><div class="heading"><button id="preview-close" aria-label="${w.close}">×</button><h2>${w.preview}</h2></div><p>${w.references}</p><div id="preview-rows"></div><p id="preview-error" class="error" role="alert"></p><div class="actions"><button id="preview-cancel">${w.cancel}</button><button id="preview-apply" class="primary" disabled>${w.apply}</button></div></dialog>`;
     const q = (s) => this.shadowRoot.querySelector(s);
     const menu = q("ha-menu-button");
     if (menu) menu.hass = this._hass;
@@ -698,6 +732,10 @@ export class IDManagerPanel extends (globalThis.HTMLElement || class {}) {
       this.store.set(this.kind, this.selected[this.kind], e.target.value);
       this.refresh();
     };
+    q("#from-name").onclick = () => {
+      this.store.set(this.kind, this.selected[this.kind], this.store.defaultSegment(this.kind, this.selected[this.kind]));
+      this.fill();
+    };
     q("#clear").onclick = () => {
       this.store.set(this.kind, this.selected[this.kind], "");
       this.fill();
@@ -745,10 +783,11 @@ export class IDManagerPanel extends (globalThis.HTMLElement || class {}) {
           : this.selected.entities;
       this.refresh();
     };
-    for (const mode of ["filter-all", "conflict-filter", "filter-scope"]) {
+    for (const mode of ["filter-all", "filter-missing", "filter-pending", "filter-saved", "filter-draft", "conflict-filter", "filter-scope"]) {
       q(`#${mode}`).onclick = (event) => {
         event.stopPropagation();
-        this.conflictOnly = mode !== "filter-all";
+        this.objectFilter = mode.startsWith("filter-") && mode !== "filter-scope" ? mode.slice(7) : "all";
+        this.conflictOnly = mode === "conflict-filter" || mode === "filter-scope";
         this.conflictScope = mode === "filter-scope" ? this.scopeChoice : null;
         this.refresh();
         this.togglePicker(true);
@@ -947,6 +986,7 @@ export class IDManagerPanel extends (globalThis.HTMLElement || class {}) {
       this.bulkSource = null;
       this.conflicts = {};
       this.conflictOnly = false;
+      this.objectFilter = "all";
       this.conflictScope = null;
       this.scopeChoice = null;
       this.expandedConflict = null;
@@ -1117,6 +1157,13 @@ export class IDManagerPanel extends (globalThis.HTMLElement || class {}) {
       }
       parentRow.append(chip);
     }
+    if (!this.store.value(this.kind, object.id)) {
+      const missing = document.createElement("span");
+      missing.className = "id-missing";
+      missing.textContent = this.words === WORDS.ru ? "Не задан" : "Not set";
+      missing.title = this.words === WORDS.ru ? "Сегмент ID не задан — используется значение по умолчанию" : "ID segment is not set — the default value is used";
+      ownRow.append(missing);
+    }
     for (const segment of this.store.segments(this.kind, object.id)) {
       const chip = document.createElement("span");
       chip.className = `id-chip ${segment.kind}`;
@@ -1132,6 +1179,7 @@ export class IDManagerPanel extends (globalThis.HTMLElement || class {}) {
       conflictOnly: this.conflictOnly,
       conflicts: this.conflicts,
       scope: this.conflictScope,
+      filter: this.objectFilter || "all",
     });
     if (!this.virtualTree)
       this.virtualTree = new VirtualTree(
@@ -1169,6 +1217,7 @@ export class IDManagerPanel extends (globalThis.HTMLElement || class {}) {
     ]);
     if (item.dataset.signature === signature) return;
     item.dataset.signature = signature;
+    item.classList.toggle("missing-segment", Boolean(node.object && !this.store.value(node.kind, node.object.id)));
     const line = document.createElement("div");
     line.className = "tree-line";
     line.style.paddingInlineStart = `${node.depth * 18}px`;
@@ -1181,7 +1230,7 @@ export class IDManagerPanel extends (globalThis.HTMLElement || class {}) {
         "aria-label",
         `${row.expanded ? (this.words === WORDS.ru ? "Свернуть" : "Collapse") : this.words === WORDS.ru ? "Развернуть" : "Expand"}: ${node.object?.name || this.words.noArea}`,
       );
-      toggle.disabled = Boolean(this.treeModel.query || this.conflictOnly);
+      toggle.disabled = Boolean(this.treeModel.query || this.conflictOnly || this.objectFilter && this.objectFilter !== "all");
       toggle.onclick = () => {
         this.treeModel.toggle(node.key);
         this.renderOptions();
@@ -1302,8 +1351,22 @@ export class IDManagerPanel extends (globalThis.HTMLElement || class {}) {
     const count = Object.keys(this.conflicts || {}).length;
     const ru = this.words === WORDS.ru;
     q("#filter-all").textContent = ru ? "Все объекты" : "All objects";
-    q("#filter-all").setAttribute("aria-pressed", String(!this.conflictOnly));
+    q("#filter-all").setAttribute("aria-pressed", String(!this.conflictOnly && (!this.objectFilter || this.objectFilter === "all")));
     q("#filter-all").disabled = this.busy;
+    const labels = {missing: ["Без сегмента", "No segment"], pending: ["К переименованию", "To rename"], saved: ["Сохранённые", "Saved"], draft: ["Черновик", "Draft"]};
+    const filterSets = this.store.filterSets();
+    for (const [key, label] of Object.entries(labels)) {
+      const button = q(`#filter-${key}`);
+      button.textContent = `${label[ru ? 0 : 1]} (${filterSets[key].size})`;
+      button.setAttribute("aria-pressed", String(!this.conflictOnly && this.objectFilter === key));
+      button.disabled = this.busy;
+    }
+    q("#filter-saved").title = ru ? "Переименование по сохранённым настройкам ещё не применено" : "Renaming based on saved settings has not been applied yet";
+    q("#filter-pending").title = ru ? "Итоговый ID отличается от текущего: сохранённые настройки и черновик" : "Resulting ID differs from the current ID: saved settings and draft";
+    q("#filter-draft").title = ru ? "Объекты, изменённые в текущем сеансе" : "Objects changed in this session";
+    q("#from-name").textContent = ru ? "Из названия" : "From name";
+    q("#from-name").title = ru ? "Заполнить сегмент значением по умолчанию, используемым генератором" : "Fill the segment with the default value used by the generator";
+    q("#from-name").disabled = this.busy || !id || !this.store.defaultSegment(this.kind, id);
     q("#conflict-filter").textContent =
       `${ru ? "Все конфликты" : "All conflicts"} (${count})`;
     q("#conflict-filter").setAttribute(
@@ -1463,6 +1526,7 @@ export class IDManagerPanel extends (globalThis.HTMLElement || class {}) {
         label,
       };
       this.scopeChoice = this.conflictScope;
+      this.objectFilter = "all";
       this.conflictOnly = true;
       this.kind = "entities";
       this.selected.entities = ids[0];

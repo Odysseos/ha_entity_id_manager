@@ -48,6 +48,8 @@ try {
   await page.goto("http://editor.test/");
   await page.evaluate(() => {
     window.test.snapshot.objects.entities.find(object => object.id === 'e').omit_candidate = true;
+    window.test.snapshot.objects.entities.find(object => object.id === 'e').default_segment = 'temperatura';
+    window.test.snapshot.objects.areas.find(object => object.id === 'b').default_segment = 'vannaya';
     window.test.snapshot.objects.entities.push({
       id: "e2",
       name: "Температура",
@@ -78,6 +80,19 @@ try {
   const layout = () => q("#editor-dialog").boundingBox();
   const initial = await layout();
   await select("entities", "e");
+  assert.equal(await q('#object .id-missing').textContent(), 'Не задан');
+  assert.ok(await q('.virtual-tree-item.missing-segment').count() > 0);
+  await q('#from-name').click();
+  assert.equal(await q('#segment').inputValue(), 'temperatura');
+  assert.equal(await q('#omit-segment').isChecked(), false);
+  assert.equal(await q('#object .id-missing').count(), 0);
+  await q('#filter-draft').click();
+  assert.ok((await q('#filter-draft').textContent()).includes('(1)'));
+  assert.equal(await q('.tree-select[data-kind-id="entities"]').count(), 1);
+  await q('#reset').click();
+  assert.ok((await q('#filter-draft').textContent()).includes('(0)'));
+  assert.equal(await q('.tree-select').count(), 0);
+  await q('#filter-all').click();
   await q("#omit-suggestion").waitFor({state: "visible"});
   assert.equal(await q("#omit-segment").isChecked(), false);
   await q("#omit-accept").click();

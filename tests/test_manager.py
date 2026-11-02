@@ -80,6 +80,10 @@ async def test_rename_and_stable_overrides(ctx):
     frame.async_setup(hass)
     defaults = snapshot(hass, entry)["objects"]["entities"][0]["default_segments"]
     assert defaults == {"area": "vannaia", "device": "neptun", "suffix": "water_leak"}
+    editor_objects = snapshot(hass, entry)["objects"]
+    assert editor_objects["areas"][0]["default_segment"] == defaults["area"]
+    assert editor_objects["devices"][0]["default_segment"] == defaults["device"]
+    assert editor_objects["entities"][0]["default_segment"] == defaults["suffix"]
     manager = Manager(hass, entry)
     plan = manager.snapshot()
     assert len(plan) == 1

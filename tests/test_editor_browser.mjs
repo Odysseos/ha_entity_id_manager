@@ -35,7 +35,7 @@ try {
       if(msg.type.endsWith('/recommend_omit'))return {target:'sensor.living_room_neptun'};
       window.test.calls.push(structuredClone(msg));
       if(msg.type==='entity_id_manager/automatic'){snapshot.auto_new=msg.enabled;return {auto_new:msg.enabled};}
-      if(msg.type==='entity_id_manager/preview')return [{registry_id:'valid',old:'sensor.old',new:'sensor.next',conflict:''},{registry_id:'blocked',old:'sensor.other',new:'sensor.taken',conflict:'occupied'}];
+      if(msg.type==='entity_id_manager/preview')return [{registry_id:'valid2',old:'sensor.old2',new:'sensor.next2',conflict:''},{registry_id:'valid',old:'sensor.old',new:'sensor.next',conflict:''},{registry_id:'blocked',old:'sensor.other',new:'sensor.taken',conflict:'occupied'}];
       if(msg.type==='entity_id_manager/apply')return {count:msg.rows.length};
       if(window.test.fail)throw {code:'stale_editor'};
       for(const[k,v]of Object.entries(msg.changes))for(const[id,segment]of Object.entries(v)){if(segment)snapshot.mappings[k][id]=segment;else delete snapshot.mappings[k][id];}
@@ -82,10 +82,22 @@ try {
   assert.equal(await q('.tree-select[data-kind-id="areas"][data-object-id="b"]').evaluate(node => node.closest('[role="treeitem"]').getAttribute('aria-selected')), 'true');
   assert.equal(await q(".tabs").count(), 0);
   assert.equal(await q('[role="tree"]').count(), 1);
+  assert.equal(await q('#missing-prev').isDisabled(), true);
+  await q('#missing-next').click();
+  assert.equal(await page.locator('entity-id-manager-panel').evaluate(panel => panel.selected[panel.kind]), 'e');
+  await q('#missing-prev').click();
+  assert.equal(await page.locator('entity-id-manager-panel').evaluate(panel => panel.selected[panel.kind]), 'b');
+  // Hidden on areas; verify the permanent row after choosing an entity below.
   const layout = () => q("#editor-dialog").boundingBox();
   const initial = await layout();
   await select("entities", "e");
   assert.equal(await q('#object .id-missing').textContent(), 'Не задан');
+  assert.match(await q('#bulk-copy').textContent(), /Применить сегмент к одноимённым объектам/);
+  const bulkRect = await q('#bulk-copy').boundingBox(), toolsRect = await q('.tools').boundingBox();
+  assert.ok(bulkRect.y >= toolsRect.y + toolsRect.height);
+  const navBounds = await q('.missing-navigation').boundingBox(), treeBounds = await q('.tree-pane').boundingBox();
+  assert.ok(Math.abs(navBounds.x + navBounds.width - treeBounds.x - treeBounds.width) < 2);
+
   assert.ok(await q('.virtual-tree-item.missing-segment').count() > 0);
   const extraction = async (entityId, device, suffix) => {
     await page.locator('entity-id-manager-panel').evaluate((panel, values) => {
@@ -274,6 +286,17 @@ try {
     await page.screenshot({ path: process.env.EDITOR_SCREENSHOT });
   await q("#cancel").click();
   await q("#preview-open").click();
+  assert.match(await q('#preview-summary').textContent(), /К переименованию: 3 · Доступно: 2 · Конфликты: 1/);
+  await q('#preview-select-all').check();
+  assert.equal(await q('#preview-rows input:checked').count(), 2);
+  assert.equal(await q('#preview-rows input[value="blocked"]').isChecked(), false);
+  assert.equal(await q('#preview-apply').textContent(), 'Применить (2)');
+  await q('#preview-rows input[value="valid2"]').uncheck();
+  assert.equal(await q('#preview-select-all').evaluate(node => node.indeterminate), true);
+  await q('#preview-select-none').click();
+  assert.equal(await q('#preview-rows input:checked').count(), 0);
+  assert.equal(await q('#preview-apply').isDisabled(), true);
+
   await q('#preview-rows input[value="valid"]').check();
   await q("#preview-apply").click();
   await q("#preview-dialog").waitFor({ state: "hidden" });

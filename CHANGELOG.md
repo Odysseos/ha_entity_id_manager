@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.13.0
+
+- Give the same-name segment action its own row and a complete label.
+- Navigate between unset segments within the current search/filter from controls below the tree.
+- Add select-all, clear-selection, partial selection and totals to the rename preview; exclude conflicts.
+
 ## 0.12.1
 
 - Open the editor at the first object with an unset segment in tree order, selecting and revealing it.

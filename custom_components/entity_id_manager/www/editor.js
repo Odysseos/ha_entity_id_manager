@@ -396,6 +396,16 @@ export class TreeModel {
     }
     return null;
   }
+  adjacentUnset(key, direction) {
+    const nodes = this.navigationNodes || [];
+    const index = nodes.findIndex(entry => entry.node.key === key);
+    let cursor = index < 0 ? (direction > 0 ? 0 : nodes.length - 1) : index + direction;
+    for (; cursor >= 0 && cursor < nodes.length; cursor += direction) {
+      const {node, own} = nodes[cursor];
+      if (own && node.object && !this.store.value(node.kind, node.object.id)) return node;
+    }
+    return null;
+  }
   state(key) {
     const node = this.nodes.get(key);
     return node?.object
@@ -473,7 +483,7 @@ export class TreeModel {
             (node.kind === "entities" &&
               this.conflicts[object.id]?.length &&
               (!this.scope || object[this.scope.field] === this.scope.id)));
-        return own || children.length ? [{ node, children }] : [];
+        return own || children.length ? [{ node, children, own }] : [];
       });
     this.rows = [];
     let top = 0;
@@ -503,7 +513,16 @@ export class TreeModel {
         top += height;
         if (expanded) flatten(children);
       });
-    flatten(filtered(this.roots));
+    const entries = filtered(this.roots);
+    this.navigationNodes = [];
+    const indexNavigation = entries => {
+      for (const entry of entries) {
+        this.navigationNodes.push(entry);
+        indexNavigation(entry.children);
+      }
+    };
+    indexNavigation(entries);
+    flatten(entries);
     this.height = top;
     this.revision++;
   }
@@ -678,14 +697,25 @@ export class IDManagerPanel extends (globalThis.HTMLElement || class {}) {
       #editor-dialog[open]{grid-template-rows:32px auto minmax(0,1fr) 64px}
       #editor-dialog .object-filters{flex-wrap:wrap;overflow:visible;white-space:normal;min-height:44px}
       @media(max-width:700px){#editor-dialog[open]{grid-template-rows:32px auto minmax(0,1fr) 56px}#editor-dialog .object-filters{flex-wrap:wrap;white-space:normal;overflow:visible}}
+      .bulk-tools{min-width:0;min-height:32px}.bulk-tools button{padding:6px 12px;text-align:start;white-space:normal;overflow-wrap:anywhere}
+      .editor-pane{grid-template-rows:18px 66px auto 48px auto auto minmax(0,1fr)}
+      .editor-footer{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:18px}
+      .tree-footer{display:flex;align-items:center;gap:6px;flex-wrap:wrap;min-width:0}.missing-navigation{display:flex;gap:2px;flex-wrap:wrap;margin-inline-start:auto;justify-content:flex-end}.missing-navigation button{font-size:.8em;padding:6px;white-space:nowrap}.editor-footer .actions{justify-self:end}
+      #editor-dialog[open]{grid-template-rows:32px auto minmax(0,1fr) auto}.editor-footer{min-height:64px}
+      .preview-selection{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;margin:12px 0}.preview-selection label{display:flex;align-items:center;gap:8px;margin:0;font:inherit}.preview-selection input{width:18px;height:18px;padding:0;flex:0 0 18px}#preview-summary,#preview-selected{font-size:.9em;color:var(--secondary-text-color,#666)}
+      @media(max-width:700px){.editor-pane{grid-template-rows:16px 66px auto 40px auto auto minmax(0,1fr)}.editor-footer{grid-template-columns:1fr;gap:4px}.editor-footer .count{max-width:none}#editor-dialog[open]{grid-template-rows:32px auto minmax(0,1fr) auto}.missing-navigation button{white-space:normal}}
     </style><header><ha-menu-button></ha-menu-button><h1>Entity ID Manager</h1></header><main><h2>${w.title}</h2><p>${w.intro}</p><div class="main-actions"><button id="open" class="primary">${w.open}</button><button id="preview-open" class="primary">${w.preview}</button></div><label class="automatic"><input id="automatic" type="checkbox" disabled> ${w.automatic}</label><p id="status" role="status"></p></main>
-    <dialog id="editor-dialog"><div class="heading"><button id="close" aria-label="${w.close}">×</button><h2>${w.title}</h2></div><div class="object-filters" role="group" aria-label="${this.words === WORDS.ru ? "Фильтр списка" : "List filter"}"><span>${this.words === WORDS.ru ? "Фильтр:" : "Filter:"}</span><button id="filter-all"></button><button id="filter-missing"></button><button id="filter-pending"></button><button id="filter-saved"></button><button id="filter-draft"></button><button id="conflict-filter"></button><button id="filter-scope" hidden></button><span id="check-status" role="status"></span></div><div class="tree-layout"><section class="tree-pane"><div id="object-dropdown"><input id="object-search" type="search" aria-label="${w.search}" placeholder="${w.search}" autocomplete="off"><div id="object-list" role="tree" aria-label="${w.choose}"></div></div></section><section class="editor-pane"><label id="object-label">${w.choose}</label><div class="picker"><div class="selected-row"><div id="object" class="object-row" aria-labelledby="object-label"></div><span id="selected-link"></span></div></div><div class="segment-heading"><label for="segment">${w.segment}</label><label id="omit-label"><input id="omit-segment" type="checkbox"><span>${this.words === WORDS.ru ? "Без собственного сегмента ID" : "No own ID segment"}</span></label></div><input id="segment" type="text" autocomplete="off" autocapitalize="none" spellcheck="false"><div class="tools"><button id="from-name"></button><button id="from-current-id" hidden></button><button id="clear">${w.clear}</button><button id="reset">${w.reset}</button><button id="bulk-copy"></button></div><div class="editor-details"><p id="target-id"></p><div id="omit-suggestion" hidden><span id="omit-reason"></span> <button id="omit-accept"></button></div><div id="bulk-choice" hidden><p id="bulk-question"></p><button id="bulk-empty"></button><button id="bulk-all"></button><button id="bulk-cancel"></button></div><div id="bulk-result" hidden><span id="bulk-message" role="status"></span><button id="bulk-undo"></button></div><p id="validation" class="error" role="status"></p><div id="conflict-detail" class="error" role="status"></div><button id="conflict-more" hidden></button><button id="copy-id" hidden></button><p id="error" class="error" role="alert"></p></div></section></div><div class="editor-footer"><p id="count" class="count"></p><div class="actions"><button id="cancel">${w.cancel}</button><button id="confirm" class="primary">${w.confirm}</button></div></div></dialog><dialog id="preview-dialog"><div class="heading"><button id="preview-close" aria-label="${w.close}">×</button><h2>${w.preview}</h2></div><p>${w.references}</p><div id="preview-rows"></div><p id="preview-error" class="error" role="alert"></p><div class="actions"><button id="preview-cancel">${w.cancel}</button><button id="preview-apply" class="primary" disabled>${w.apply}</button></div></dialog>`;
+    <dialog id="editor-dialog"><div class="heading"><button id="close" aria-label="${w.close}">×</button><h2>${w.title}</h2></div><div class="object-filters" role="group" aria-label="${this.words === WORDS.ru ? "Фильтр списка" : "List filter"}"><span>${this.words === WORDS.ru ? "Фильтр:" : "Filter:"}</span><button id="filter-all"></button><button id="filter-missing"></button><button id="filter-pending"></button><button id="filter-saved"></button><button id="filter-draft"></button><button id="conflict-filter"></button><button id="filter-scope" hidden></button><span id="check-status" role="status"></span></div><div class="tree-layout"><section class="tree-pane"><div id="object-dropdown"><input id="object-search" type="search" aria-label="${w.search}" placeholder="${w.search}" autocomplete="off"><div id="object-list" role="tree" aria-label="${w.choose}"></div></div></section><section class="editor-pane"><label id="object-label">${w.choose}</label><div class="picker"><div class="selected-row"><div id="object" class="object-row" aria-labelledby="object-label"></div><span id="selected-link"></span></div></div><div class="segment-heading"><label for="segment">${w.segment}</label><label id="omit-label"><input id="omit-segment" type="checkbox"><span>${this.words === WORDS.ru ? "Без собственного сегмента ID" : "No own ID segment"}</span></label></div><input id="segment" type="text" autocomplete="off" autocapitalize="none" spellcheck="false"><div class="tools"><button id="from-name"></button><button id="from-current-id" hidden></button><button id="clear">${w.clear}</button><button id="reset">${w.reset}</button></div><div class="bulk-tools"><button id="bulk-copy"></button></div><div class="editor-details"><p id="target-id"></p><div id="omit-suggestion" hidden><span id="omit-reason"></span> <button id="omit-accept"></button></div><div id="bulk-choice" hidden><p id="bulk-question"></p><button id="bulk-empty"></button><button id="bulk-all"></button><button id="bulk-cancel"></button></div><div id="bulk-result" hidden><span id="bulk-message" role="status"></span><button id="bulk-undo"></button></div><p id="validation" class="error" role="status"></p><div id="conflict-detail" class="error" role="status"></div><button id="conflict-more" hidden></button><button id="copy-id" hidden></button><p id="error" class="error" role="alert"></p></div></section></div><div class="editor-footer"><div class="tree-footer"><p id="count" class="count"></p><div class="missing-navigation"><button id="missing-prev"></button><button id="missing-next"></button></div></div><div class="actions"><button id="cancel">${w.cancel}</button><button id="confirm" class="primary">${w.confirm}</button></div></div></dialog><dialog id="preview-dialog"><div class="heading"><button id="preview-close" aria-label="${w.close}">×</button><h2>${w.preview}</h2></div><p>${w.references}</p><div id="preview-summary" role="status"></div><div class="preview-selection"><label><input id="preview-select-all" type="checkbox"><span id="preview-select-label"></span></label><button id="preview-select-none"></button></div><div id="preview-rows"></div><p id="preview-selected" role="status"></p><p id="preview-error" class="error" role="alert"></p><div class="actions"><button id="preview-cancel">${w.cancel}</button><button id="preview-apply" class="primary" disabled>${w.apply}</button></div></dialog>`;
     const q = (s) => this.shadowRoot.querySelector(s);
     const menu = q("ha-menu-button");
     if (menu) menu.hass = this._hass;
     q("#open").onclick = () => this.open();
     q("#preview-open").onclick = () => this.openPreview();
     q("#automatic").onchange = () => this.setAutomatic();
+    q("#missing-prev").onclick = () => this.navigateUnset(-1);
+    q("#missing-next").onclick = () => this.navigateUnset(1);
+    q("#preview-select-all").onchange = event => this.selectPreview(event.target.checked);
+    q("#preview-select-none").onclick = () => this.selectPreview(false);
     q("#preview-close").onclick = q("#preview-cancel").onclick = () =>
       this.closePreview();
     q("#preview-dialog").addEventListener("cancel", (event) => {
@@ -883,16 +913,30 @@ export class IDManagerPanel extends (globalThis.HTMLElement || class {}) {
     this.shadowRoot.querySelector("#preview-dialog").close();
     this.previewRows = [];
   }
+  selectPreview(selected) {
+    if (this.previewBusy) return;
+    for (const checkbox of this.shadowRoot.querySelectorAll("#preview-rows input"))
+      checkbox.checked = selected && checkbox.dataset.conflict !== "true";
+    this.updatePreviewControls();
+  }
   updatePreviewControls() {
-    const q = (s) => this.shadowRoot.querySelector(s);
-    q("#preview-apply").disabled =
-      this.previewBusy ||
-      ![...q("#preview-rows").querySelectorAll("input:checked")].length;
-    for (const selector of [
-      "#preview-close",
-      "#preview-cancel",
-      "#preview-rows input",
-    ])
+    const q = (s) => this.shadowRoot.querySelector(s), ru = this.words === WORDS.ru;
+    const boxes = [...q("#preview-rows").querySelectorAll("input")];
+    const available = boxes.filter(box => box.dataset.conflict !== "true");
+    const count = available.filter(box => box.checked).length;
+    q("#preview-summary").textContent = ru
+      ? `К переименованию: ${boxes.length} · Доступно: ${available.length} · Конфликты: ${boxes.length - available.length}`
+      : `To rename: ${boxes.length} · Available: ${available.length} · Conflicts: ${boxes.length - available.length}`;
+    q("#preview-select-label").textContent = `${ru ? "Выбрать все доступные" : "Select all available"} (${available.length})`;
+    q("#preview-select-none").textContent = ru ? "Снять выбор" : "Clear selection";
+    q("#preview-select-all").checked = available.length > 0 && count === available.length;
+    q("#preview-select-all").indeterminate = count > 0 && count < available.length;
+    q("#preview-select-all").disabled = this.previewBusy || !available.length;
+    q("#preview-select-none").disabled = this.previewBusy || !count;
+    q("#preview-selected").textContent = ru ? `Выбрано: ${count} из ${available.length}` : `Selected: ${count} of ${available.length}`;
+    q("#preview-apply").textContent = `${ru ? "Применить" : "Apply"} (${count})`;
+    q("#preview-apply").disabled = this.previewBusy || !count;
+    for (const selector of ["#preview-close", "#preview-cancel", "#preview-rows input"])
       for (const node of this.shadowRoot.querySelectorAll(selector))
         node.disabled = this.previewBusy || node.dataset.conflict === "true";
   }
@@ -1025,6 +1069,7 @@ export class IDManagerPanel extends (globalThis.HTMLElement || class {}) {
       this.busy = false;
       q("#error").textContent = "";
       const initial = this.treeModel.firstUnset();
+      this.navigationKey = initial?.key;
       if (initial) {
         this.kind = initial.kind;
         this.selected[initial.kind] = initial.object.id;
@@ -1223,6 +1268,7 @@ export class IDManagerPanel extends (globalThis.HTMLElement || class {}) {
         (item, row) => this.renderVirtualRow(item, row),
       );
     this.virtualTree.setRows(this.treeModel.rows);
+    this.updateMissingNavigation();
   }
   renderVirtualRow(item, row) {
     const node = row.node,
@@ -1286,6 +1332,7 @@ export class IDManagerPanel extends (globalThis.HTMLElement || class {}) {
       );
       button.disabled = this.busy;
       button.onclick = () => {
+        this.navigationKey = node.key;
         this.kind = node.kind;
         this.selected[node.kind] = node.object.id;
         this.fill();
@@ -1319,6 +1366,33 @@ export class IDManagerPanel extends (globalThis.HTMLElement || class {}) {
     this.treeModel.reveal(node.key);
     this.renderOptions();
     this.virtualTree.reveal(node.key);
+  }
+  selectedTreeKey() {
+    const selected = this.treeModel.nodes.get(this.navigationKey);
+    if (selected?.kind === this.kind && selected.object?.id === this.selected[this.kind]) return selected.key;
+    return [...this.treeModel.nodes.values()].find(node => node.kind === this.kind && node.object?.id === this.selected[this.kind])?.key;
+  }
+  navigateUnset(direction) {
+    if (this.busy || !this.treeModel) return;
+    this.renderOptions();
+    const key = this.selectedTreeKey();
+    const node = this.treeModel.adjacentUnset(key, direction);
+    if (!node) return;
+    this.navigationKey = node.key;
+    this.kind = node.kind;
+    this.selected[node.kind] = node.object.id;
+    this.fill();
+    this.revealTreeObject(node.kind, node.object.id);
+    this.focusTreeRow(node.key);
+  }
+  updateMissingNavigation() {
+    const ru = this.words === WORDS.ru;
+    const key = this.selectedTreeKey();
+    for (const [selector, direction, label] of [["#missing-prev", -1, ru ? "↑ Предыдущий без сегмента" : "↑ Previous unset"], ["#missing-next", 1, ru ? "Следующий без сегмента ↓" : "Next unset ↓"]]) {
+      const button = this.shadowRoot.querySelector(selector);
+      button.textContent = label;
+      button.disabled = this.busy || !this.treeModel.adjacentUnset(key, direction);
+    }
   }
   positionPicker() {}
   togglePicker() {
@@ -1456,7 +1530,7 @@ export class IDManagerPanel extends (globalThis.HTMLElement || class {}) {
     const unsetNamesakes = this.store.namesakeTargets(this.kind, id, false);
     const value = this.store.value(this.kind, id);
     q("#bulk-copy").textContent =
-      `${this.words === WORDS.ru ? "Для одноимённых" : "Apply to same name"} (${namesakes.length})`;
+      `${this.words === WORDS.ru ? "Применить сегмент к одноимённым объектам" : "Apply segment to objects with the same name"} (${namesakes.length})`;
     q("#bulk-copy").hidden = this.kind === "areas";
     q("#bulk-copy").disabled =
       this.busy || !namesakes.length || !value || !(SEGMENT.test(value) || (this.kind === "entities" && value === "-"));

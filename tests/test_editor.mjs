@@ -384,3 +384,22 @@ positioning.set('entities', 'second', 'second');
 assert.equal(positioningTree.firstUnset(), null);
 positioningTree.destroy();
 console.log('Initial selection: first unset in tree order, omission excluded and all-set fallback: passed');
+const navigation = new DraftStore({mappings: {areas: {}, devices: {}, entities: {omitted: '-'}}, objects: {
+  areas: [{id: 'a', name: 'Area'}], devices: [{id: 'd', name: 'Device', area_id: 'a'}],
+  entities: [{id: 'first', name: 'First', area_id: 'a', device_id: 'd'}, {id: 'last', name: 'Last', area_id: 'a', device_id: 'd'}, {id: 'omitted', name: 'Omitted', area_id: 'a', device_id: 'd'}],
+}});
+const navigationTree = new TreeModel(navigation);
+assert.equal(navigationTree.adjacentUnset('areas:a', -1), null);
+assert.equal(navigationTree.adjacentUnset('areas:a', 1).object.id, 'd');
+navigationTree.toggle('devices:d@areas:a');
+assert.equal(navigationTree.adjacentUnset('devices:d@areas:a', 1).object.id, 'first');
+assert.equal(navigationTree.adjacentUnset('entities:last', 1), null);
+navigation.set('entities', 'first', 'first');
+assert.equal(navigationTree.adjacentUnset('devices:d@areas:a', 1).object.id, 'last');
+navigationTree.update({query: 'Last', conflictOnly: false, conflicts: {}, scope: null});
+assert.equal(navigationTree.adjacentUnset('entities:last', -1), null);
+assert.equal(navigationTree.adjacentUnset(undefined, 1).object.id, 'last');
+navigationTree.update({query: '', conflictOnly: true, conflicts: {first: [{}], last: [{}]}, scope: {field: 'device_id', id: 'd'}});
+assert.equal(navigationTree.adjacentUnset(undefined, 1).object.id, 'last');
+navigationTree.destroy();
+console.log('Unset navigation: collapsed branches, boundaries, search and scoped filters: passed');

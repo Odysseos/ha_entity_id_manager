@@ -38,8 +38,8 @@ try {
       if(msg.type==='entity_id_manager/preview')return [{registry_id:'valid2',old:'sensor.old2',new:'sensor.next2',conflict:''},{registry_id:'valid',old:'sensor.old',new:'sensor.next',conflict:''},{registry_id:'blocked',old:'sensor.other',new:'sensor.taken',conflict:'occupied'}];
       if(msg.type==='entity_id_manager/apply')return {count:msg.rows.length};
       if(window.test.fail)throw {code:'stale_editor'};
-      for(const[k,v]of Object.entries(msg.changes))for(const[id,segment]of Object.entries(v)){if(segment)snapshot.mappings[k][id]=segment;else delete snapshot.mappings[k][id];}
-      snapshot.revision='r2';return structuredClone(snapshot);
+      for(const[k,v]of Object.entries(msg.changes))for(const[id,segment]of Object.entries(v)){if(segment)window.test.snapshot.mappings[k][id]=segment;else delete window.test.snapshot.mappings[k][id];}
+      if(msg.reviewed)window.test.snapshot.reviewed=structuredClone(msg.reviewed);window.test.snapshot.revision='r2';return structuredClone(window.test.snapshot);
     }};
     </script></body></html>`,
     });
@@ -432,6 +432,39 @@ try {
   assert.equal(positioning.id, 'unset-last');
   assert.ok(positioning.scrollTop > 0);
   assert.ok(positioning.visible);
+  await q('#cancel').click();
+  await page.evaluate(() => {
+    window.test.snapshot = {revision: 'review-state', reviewed: {areas: ['old'], devices: [], entities: []},
+      mappings: {areas: {}, devices: {}, entities: {primary: '-'}},
+      objects: {areas: [{id: 'old', name: 'A old'}, {id: 'new', name: 'Z new'}], devices: [], entities: [{id: 'primary', name: 'Primary', area_id: 'new', entity_id: 'sensor.primary'}]}};
+    window.test.conflicts = {};
+  });
+  await q('#open').click();
+  assert.equal(await page.locator('entity-id-manager-panel').evaluate(panel => panel.selected[panel.kind]), 'old');
+  assert.equal(await q('.virtual-tree-item.new-object').count(), 2);
+  assert.equal(await q('.tree-select[data-object-id="new"] .id-missing').textContent(), 'Новый');
+  const statusBounds = await q('.tree-select[data-object-id="new"] .id-missing').boundingBox();
+  const statusRowBounds = await q('.tree-select[data-object-id="new"]').boundingBox();
+  assert.ok(Math.abs(statusRowBounds.x + statusRowBounds.width - statusBounds.x - statusBounds.width) < 6);
+  assert.ok(statusBounds.y >= statusRowBounds.y && statusBounds.y + statusBounds.height <= statusRowBounds.y + statusRowBounds.height);
+
+  assert.equal(await q('.tree-select[data-object-id="primary"] .id-missing').textContent(), 'Новый');
+  assert.equal(await q('.tree-select[data-object-id="old"] .id-missing').textContent(), 'Не задан');
+  assert.equal(await q('#confirm').isDisabled(), false);
+  await q('#cancel').click();
+  await q('#open').click();
+  assert.equal(await q('.virtual-tree-item.new-object').count(), 2);
+  // Hidden by search is still reviewed because it was in the opened snapshot.
+  await q('#object-search').fill('A old');
+  await q('#confirm').click();
+  await q('#editor-dialog').waitFor({state: 'hidden'});
+  const reviewRequest = await page.evaluate(() => window.test.calls.findLast(call => call.type === 'entity_id_manager/editor/save'));
+  assert.deepEqual(reviewRequest.reviewed, {areas: ['old', 'new'], devices: [], entities: ['primary']});
+  assert.deepEqual(reviewRequest.changes, {areas: {}, devices: {}, entities: {}});
+  await q('#open').click();
+  assert.equal(await q('.virtual-tree-item.new-object').count(), 0);
+  assert.equal(await q('.tree-select[data-object-id="new"] .id-missing').textContent(), 'Не задан');
+  assert.equal(await q('#confirm').isDisabled(), true);
   await q('#cancel').click();
   assert.deepEqual(errors, []);
   console.log(

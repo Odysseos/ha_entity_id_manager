@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.15.0
+
+- Persist reviewed object registry IDs when confirming, including unchanged and filtered objects from the opened snapshot.
+- Mark newly discovered objects with a green stripe and New badge, preserving the ID column alignment.
+- Allow review-only confirmations and preserve review state on cancellation or failed saves.
+- Keep first-unset selection and navigation strictly in tree order without prioritizing new objects.
+
 ## 0.14.0
 
 - Offer a standard Home Assistant backup before manual rename, enabled by default.

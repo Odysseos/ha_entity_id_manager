@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.11.1
+
+- Count and fill unset same-name segments even when their current full entity IDs already match generated IDs.
+- Continue excluding explicitly matching saved or draft segments; keep rename plan counts independent.
+
 ## 0.11.0
 
 - Mark unset segments for all object types with a left-edge stripe and a localized Not set chip.

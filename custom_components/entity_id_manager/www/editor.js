@@ -251,18 +251,7 @@ export class DraftStore {
     if (!after || !(SEGMENT.test(after) || (key === "entities" && after === "-"))) return [];
     return this.namesakes(key, id).filter((object) => {
       const before = this.value(key, object.id);
-      if (before === after || (before && !replace)) return false;
-      const entities = key === "entities" ? [object] : this.deviceEntities.get(object.id) || [];
-      // Missing defaults in older snapshots must not hide editable objects.
-      return !entities.length || entities.some((entity) => {
-        if (!entity.default_segments || !entity.entity_id) return true;
-        const defaults = entity.default_segments;
-        const area = this.value("areas", entity.area_id) || defaults.area;
-        const device = key === "devices" ? after : this.value("devices", entity.device_id) || defaults.device;
-        const suffix = key === "entities" ? after : this.value("entities", entity.id) || defaults.suffix;
-        const target = entity.entity_id.split(".", 1)[0] + "." + [area, device, suffix === "-" ? "" : suffix].filter(Boolean).join("_");
-        return target !== entity.entity_id;
-      });
+      return before !== after && (replace || !before);
     });
   }
   copyToNamesakes(key, id, replace) {

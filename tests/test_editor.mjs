@@ -203,11 +203,11 @@ const alreadyNamed = new DraftStore({
     { id: "wrongEntity", name: "Влажность", device_id: "wrong", area_id: "room", entity_id: "sensor.wrong", default_segments: { area: "room", device: "sensor", suffix: "humidity" } },
   ] },
 });
-assert.deepEqual(alreadyNamed.namesakeTargets("entities", "sourceEntity", true).map(o => o.id), ["wrongEntity"]);
-assert.deepEqual(alreadyNamed.namesakeTargets("devices", "source", true).map(o => o.id), ["wrong"]);
+assert.deepEqual(alreadyNamed.namesakeTargets("entities", "sourceEntity", true).map(o => o.id), ["correctEntity", "wrongEntity"]);
+assert.deepEqual(alreadyNamed.namesakeTargets("devices", "source", true).map(o => o.id), ["correct", "wrong"]);
 alreadyNamed.set("areas", "room", "other_room");
 assert.equal(alreadyNamed.namesakeTargets("entities", "sourceEntity", true).length, 2);
-console.log("Already-correct full IDs are excluded without requiring saved overrides: passed");
+console.log("Unset overrides remain editable even when full IDs are already correct: passed");
 alreadyNamed.omit("sourceEntity", true);
 assert.equal(alreadyNamed.value("entities", "sourceEntity"), "-");
 assert.equal(alreadyNamed.valid, true);
@@ -327,3 +327,25 @@ filters.set('entities', 'e', filters.defaultSegment('entities', 'e'));
 assert.equal(filters.value('entities', 'e'), 'vlazhnost');
 filterModel.destroy();
 console.log('Segment state filters, ancestor retention and generator defaults: passed');
+
+// Regression: equal current entity IDs must not hide missing explicit segments.
+for (const suffix of ["low_battery_valve_state", "linkquality"]) {
+  const rooms = ["living_room", "kids_room", "kitchen", "bedroom"];
+  const entities = rooms.map(area => ({
+    id: `${area}_${suffix}`, name: suffix === "linkquality" ? "Linkquality" : "Low battery valve state",
+    entity_id: `${suffix === "linkquality" ? "sensor" : "select"}.${area}_radiator_${suffix}`,
+    area_id: area, device_id: `${area}_radiator`,
+    default_segments: {area, device: "radiator", suffix}, default_segment: suffix,
+  }));
+  const group = new DraftStore({mappings: {areas: {}, devices: {}, entities: {}}, objects: {areas: [], devices: [], entities}});
+  group.set("entities", entities[0].id, suffix);
+  assert.equal(group.namesakeTargets("entities", entities[0].id, false).length, 3);
+  assert.equal(group.copyToNamesakes("entities", entities[0].id, false), 3);
+  assert.equal(group.namesakeTargets("entities", entities[0].id, true).length, 0);
+  assert.equal(group.count, 4);
+  assert.equal(group.filterSets().pending.size, 0);
+  assert.equal(group.filterSets().missing.size, 0);
+  assert.equal(group.undoBulk(), 3);
+  assert.equal(group.namesakeTargets("entities", entities[0].id, false).length, 3);
+}
+console.log("Linkquality and low battery: unset segments counted independently of rename plans: passed");

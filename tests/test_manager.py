@@ -523,6 +523,59 @@ async def test_editor_object_context_and_icons(ctx):
 
 
 @pytest.mark.asyncio
+async def test_editor_names_without_legacy_registry_function(ctx, monkeypatch):
+    from custom_components.entity_id_manager.editor import objects
+
+    hass, entry, area, device, entity = await ctx()
+    # HA 2026.11 removes the module helper in favor of RegistryEntry.entity_name.
+    monkeypatch.delattr(er, "async_get_unprefixed_name", raising=False)
+    if not hasattr(type(entity), "entity_name"):
+        monkeypatch.setattr(
+            type(entity),
+            "entity_name",
+            property(
+                lambda obj: (
+                    obj.name
+                    if obj.name is not None
+                    else obj.original_name_unprefixed
+                    if obj.original_name_unprefixed is not None
+                    else obj.original_name or ""
+                )
+            ),
+            raising=False,
+        )
+    registry = er.async_get(hass)
+    registry.async_update_entity(entity.entity_id, name="Своя влажность")
+    primary = registry.async_get_or_create(
+        "sensor",
+        "demo",
+        "primary",
+        device_id=device.id,
+        has_entity_name=True,
+    )
+    data = {row["id"]: row for row in objects(hass)["entities"]}
+    assert data[entity.id]["name"] == "Своя влажность"
+    assert data[primary.id]["name"] == primary.entity_id
+    await hass.async_stop()
+
+
+def test_editor_legacy_registry_name(monkeypatch):
+    from types import SimpleNamespace
+
+    from custom_components.entity_id_manager.editor import entity_name
+
+    entry = SimpleNamespace()
+    hass = object()
+
+    def legacy_getter(actual_hass, actual_entry):
+        assert actual_hass is hass and actual_entry is entry
+        return "Linkquality"
+
+    monkeypatch.setattr(er, "async_get_unprefixed_name", legacy_getter, raising=False)
+    assert entity_name(hass, entry) == "Linkquality"
+
+
+@pytest.mark.asyncio
 async def test_area_name_fallback(ctx):
     from homeassistant.util import slugify
 

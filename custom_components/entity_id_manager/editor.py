@@ -32,6 +32,13 @@ def revision(entry):
     return hashlib.sha256(json.dumps(mappings(entry), sort_keys=True).encode()).hexdigest()
 
 
+def entity_name(hass, entry):
+    """Read the own name across the HA 2026.11 registry API change."""
+    if (name := getattr(entry, "entity_name", None)) is not None:
+        return name
+    return er.async_get_unprefixed_name(hass, entry)
+
+
 def objects(hass, fallbacks=None):
     areas = ar.async_get(hass)
     devices = dr.async_get(hass)
@@ -104,7 +111,7 @@ def objects(hass, fallbacks=None):
         result["entities"].append(
             {
                 "id": obj.id,
-                "name": er.async_get_unprefixed_name(hass, obj) or obj.entity_id,
+                "name": entity_name(hass, obj) or obj.entity_id,
                 "entity_id": obj.entity_id,
                 "default_segment": default_suffix,
                 "omit_candidate": bool(

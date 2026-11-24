@@ -1,5 +1,5 @@
-homeassistant==2026.10.4
-home-assistant-frontend==20260930.5
+homeassistant==2026.11.3
+home-assistant-frontend==20261028.8
 pytest>=8.3,<10
 pytest-asyncio>=1.0,<2
 ruff>=0.14,<1

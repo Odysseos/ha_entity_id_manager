@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.15.4
+
+- Fix editor loading on Home Assistant 2026.11 after removal of async_get_unprefixed_name.
+- Use RegistryEntry.entity_name when available and retain the legacy name API for older HA versions.
+- Cover editor loading without the removed API, custom entity names, unnamed entities and the legacy path.
+
 ## 0.15.3
 
 - Migrate explicit YaHA YAML references through includes and reload YaHA after changes.
